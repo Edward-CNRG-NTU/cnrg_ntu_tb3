@@ -27,7 +27,7 @@ CHUNK_SIZE = 1024 / 256
 N_SUBCHANNELS = 40
 
 # SIMULATION
-MAX_DELAY = 5.
+MAX_DELAY = 10.
 
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
@@ -64,14 +64,8 @@ def run_IC_model():
 
     rospy.loginfo('"%s" starts subscribing to "%s" and "%s".' % (NODE_NAME, SUB_MSO_TOPIC_NAME, SUB_LSO_TOPIC_NAME))
 
-    est_weight=np.concatenate(([3], 5*np.ones(21), 3*np.ones(12), np.ones(6)))
-    est_weight_matrix=np.zeros([40,150])
-    n_angle = np.arange(7)
-
-    start=0
-    for c in range(0,40):
-        est_weight_matrix[c,int(start):int(start+est_weight[c])]=1
-        start=start+est_weight[c]
+    vote_weight=np.concatenate(([3], 5*np.ones(21), 3*np.ones(12), np.ones(6)))
+    vote_stat_bin = np.arange(len(SUPPORTED_ANGLES) + 1)
 
     while not rospy.is_shutdown() and event.wait(1.0):
         event.clear()
@@ -83,69 +77,47 @@ def run_IC_model():
 
         try:
             lso_msg = dq_lso.popleft()
-        except IndexError:
+        except IndexError:            
             dq_mso.appendleft(mso_msg)
             continue
 
         if mso_msg.timecode.to_sec() < lso_msg.timecode.to_sec():
-            rospy.logwarn('skip 1 mso_msg')
+            rospy.logwarn('skip 1 mso_msg: %d, %d' % (len(dq_mso), len(dq_lso)))
             dq_lso.appendleft(lso_msg)
+            event.set()
             continue
         elif mso_msg.timecode.to_sec() > lso_msg.timecode.to_sec():
-            rospy.logwarn('skip 1 lso_msg')
+            rospy.logwarn('skip 1 lso_msg: %d, %d' % (len(dq_mso), len(dq_lso)))
             dq_mso.appendleft(mso_msg)
+            event.set()
             continue
 
         if mso_msg.timecode.to_sec() == lso_msg.timecode.to_sec():
             mso_data = np.array(mso_msg.left_channel).reshape(mso_msg.shape)
             lso_data = np.array(lso_msg.left_channel).reshape(lso_msg.shape)
-            # print mso_data.shape, lso_data.shape
 
             low_freq = 10. * mso_data[:, :2, :18]
             high_freq = 5. * mso_data[:, :2, 18:] * lso_data[:, :2, 18:]
 
-            full_freq = np.concatenate([low_freq, high_freq], axis=2)
+            ic_result = np.concatenate([low_freq, high_freq], axis=2)
 
-            full_freq = np.mean(full_freq, axis=1)
+            ic_result_reduced = np.max(ic_result, axis=1)
 
-            the_argmax = np.argmax(full_freq, axis=0)
+            argmax_of_every_ch = np.argmax(ic_result_reduced, axis=0)
 
-            print the_argmax
+            print argmax_of_every_ch
 
-            votes = np.dot(the_argmax, est_weight_matrix)
+            vote_stat = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight)[0]  # NOTICE how th bin set up.
 
-            vote_result = np.histogram(votes, n_angle)[0]
+            print vote_stat
 
-            vote_pub.publish(Int16MultiArray(data=vote_result))
+            vote_pub.publish(Int16MultiArray(data=vote_stat))
 
-            angle_estimate = np.argmax(vote_result)
+            angle_index = np.argmax(vote_stat)
             
-            ic_pub.publish(angle_estimate)
+            ic_pub.publish(angle_index)
 
-            rospy.loginfo('<%f> angle_estimate: %d' % (mso_msg.timecode.to_sec(), SUPPORTED_ANGLES[angle_estimate]))
-
-
-            # angle_estimate = np.mean(full_freq, axis=(1, 2))
-
-            # print low_freq.shape, high_freq.shape, full_freq.shape, angle_estimate.shape
-
-            # for i in range(7):
-            #     ic_pub[i].publish(angle_estimate[i])
-
-
-            # for step in range(mso_msg.shape[1]):
-            #     low_freq = 10. * mso_data[:, step, :18]
-            #     high_freq = 5. * mso_data[:, step, 18:] * lso_data[:, step, 18:]
-            #     full_freq = np.concatenate([low_freq, high_freq], axis=1)
-            #     sum_of_every_angle = np.sum(full_freq, axis=1)
-
-            #     # print full_freq.shape
-            #     # print np.max(full_freq, axis=0)
-            #     # (values, counts) = np.unique(np.argmax(full_freq, axis=0),return_counts=True)
-            #     # ic_pub.publish(Float32(data=np.argmax(values)))
-            #     for i in range(7):
-            #         ic_pub[i].publish(sum_of_every_angle[i])
-            #         # time.sleep(1./60)
+            rospy.loginfo('<%f> angle_estimate: (%d)%d' % (mso_msg.timecode.to_sec(), angle_index, SUPPORTED_ANGLES[angle_index]))
 
 
 if __name__ == '__main__':

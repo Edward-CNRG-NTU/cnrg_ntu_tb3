@@ -19,10 +19,13 @@ SAMPLE_RATE = 11025
 CHUNK_SIZE = 1024
 SIM_CHUNK_SIZE = CHUNK_SIZE
 N_SUBCHANNELS = 40
-MAX_DELAY = 5.
+MAX_DELAY = 10.
 MAX_STEPS = int(MAX_DELAY * SAMPLE_RATE)
 
-DELAY_STEPS = [10, 9, 7, 5, 3, 1, 0]  # [0, 1, 3, 5, 7, 9, 10]
+# DELAY_STEPS = [10, 9, 7, 5, 3, 1, 0]  # [0, 1, 3, 5, 7, 9, 10]
+# DELAY_STEPS = [38, 34, 26, 19, 12, 4, 0] 
+# DELAY_STEPS = [20, 18, 14, 10, 6, 2, 0]
+DELAY_STEPS = [9, 8, 6, 4, 3, 1, 0]
 DELAY_STEPS_R = list(reversed(DELAY_STEPS))
 N_DELAY_VAL = len(DELAY_STEPS)
 MAXPOOLING = 100
@@ -113,7 +116,7 @@ def run_MSO_model():
 
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
-    while not rospy.is_shutdown() and event.wait(5.):
+    while not rospy.is_shutdown() and event.wait(1.):
         yet_to_run = dl_R.n_steps - sim.n_steps * SIM_SKIP_FACTOR - SIM_CHUNK_SIZE
 
         if yet_to_run == 0:

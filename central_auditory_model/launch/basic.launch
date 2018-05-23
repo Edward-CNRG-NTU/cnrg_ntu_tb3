@@ -1,9 +1,15 @@
 <launch>
   <arg name="sim_src" default="false"/>
-  <include file="$(find central_auditory_model)/launch/simulated_source.launch" if="$(arg sim_src)"/>
+  <include file="$(find binaural_microphone)/launch/wave_stereo.launch" if="$(arg sim_src)"/>
+  <include file="$(find ipem_module)/launch/basic.launch" if="$(arg sim_src)"/>
 
   <arg name="src" default="false"/>
-  <include file="$(find central_auditory_model)/launch/microphone_source.launch" if="$(arg src)"/>
+  <include file="$(find binaural_microphone)/launch/basic.launch" if="$(arg src)"/>
+  <include file="$(find ipem_module)/launch/basic.launch" if="$(arg src)"/>
+
+  <arg name='ipem' default="false"/>
+  <include file="$(find ipem_module)/launch/basic.launch" if="$(arg ipem)"/>
+  
 
   <node pkg="central_auditory_model" name="MSO_model_v4_1" type="MSO_model_v4_1.py" respawn="true" />
   <node pkg="central_auditory_model" name="LSO_model" type="LSO_model.py" respawn="true" />

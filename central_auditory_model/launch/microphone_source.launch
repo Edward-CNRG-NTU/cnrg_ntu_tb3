@@ -1,7 +1,0 @@
-<launch>
-
-  <include file="$(find binaural_microphone)/launch/basic.launch" />
-
-  <include file="$(find ipem_module)/launch/basic.launch" />
-
-</launch>
