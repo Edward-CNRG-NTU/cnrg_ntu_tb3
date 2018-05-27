@@ -1,34 +1,33 @@
 #!/usr/bin/env python
-# import pyaudio
 import wave
 import numpy as np
-import time
 import os
 
 import rospy, rospkg
 from std_msgs.msg import Float32
-from std_msgs.msg import Int32
+from std_msgs.msg import UInt8
 from std_msgs.msg import String
 from std_msgs.msg import Header
 from dynamic_reconfigure.server import Server
 from binaural_microphone.cfg import waveStereoConfig
 from binaural_microphone.msg import BinauralAudio
 
+
+NODE_NAME = 'wave_stereo'
+TOPIC_NAME = 'source_stream'
+RMS_TOPIC_NAME = 'source_rms'
+
 PACKAGE_DIR_PATH = rospkg.RosPack().get_path('binaural_microphone')
 
-FILE_SAMPLE_RATE = 44100
-FILE_PATH_AND_NAME = 'wave_stereo_db/coffee'
-FILE_ANGLE = 0
-DOWN_SAMPLE_FACTOR = 2
-
+ANGLE_INDEX = 3
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
+
+FILE_PATH_NAME = 'wave_stereo_db/coffee'
+FILE_SAMPLE_RATE = 44100
+DOWN_SAMPLE_FACTOR = 2
 
 SAMPLE_RATE = 22050
 CHUNK_SIZE= 1024
-
-TOPIC_NAME = 'source_stream'
-NODE_NAME = 'wave_stereo'
-RMS_TOPIC_NAME = 'source_rms'
 
 
 def wave_preprocessing(wav):
@@ -43,25 +42,27 @@ def wave_preprocessing(wav):
     return np.pad(wav_np, (0, n_chunks * CHUNK_SIZE - wav_np.shape[0],), mode='constant')
 
 
-def load_data(file_path_name=FILE_PATH_AND_NAME, angle=FILE_ANGLE):
-    global data_L, data_R, data_start, FILE_ANGLE, FILE_PATH_AND_NAME
+def load_data(file_path_name=FILE_PATH_NAME, angle_index=ANGLE_INDEX):
+    global data_L, data_R, data_start, ANGLE_INDEX, FILE_PATH_NAME
 
-    if angle in SUPPORTED_ANGLES:
-        FILE_ANGLE = int(angle)
-        print 'angle changed to:', FILE_ANGLE
+    angle_index = int(angle_index)
+
+    if 0 <= angle_index < len(SUPPORTED_ANGLES):
+        ANGLE_INDEX = angle_index
+        rospy.loginfo('angle_index changed to: %d (%d degree)' % (angle_index, SUPPORTED_ANGLES[angle_index]))
     else:
-        print 'unsupported angle: %d' % angle
+        rospy.logwarn('unsupported angle_index: %d' % angle_index)
         return
 
-    fn_L = '%s_%dL.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, angle)
-    fn_R = '%s_%dR.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, angle)
+    fn_L = '%s_%dL.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, SUPPORTED_ANGLES[angle_index])
+    fn_R = '%s_%dR.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, SUPPORTED_ANGLES[angle_index])
 
-    if file_path_name is not FILE_PATH_AND_NAME:
+    if file_path_name is not FILE_PATH_NAME:
         if os.path.isfile(fn_L) and os.path.isfile(fn_R):
-            FILE_PATH_AND_NAME = file_path_name
-            print 'file changed to:', FILE_PATH_AND_NAME
+            FILE_PATH_NAME = file_path_name
+            rospy.loginfo('file changed to: %s' % file_path_name)
         else:
-            print 'files not found:', fn_L, fn_R
+            rospy.logwarn('files not found: %s, %s' % (fn_L, fn_R))
             return
 
     data_L = wave_preprocessing(wave.open(fn_L, 'rb'))
@@ -71,9 +72,9 @@ def load_data(file_path_name=FILE_PATH_AND_NAME, angle=FILE_ANGLE):
 
 
 def dynamic_reconfig_cb(config, level):
-    rospy.loginfo('Reconfiugre Request: {angle}, {file_path_name}.'.format(**config))
-    load_data(config['file_path_name'], SUPPORTED_ANGLES[config['angle']])
-    (config['file_path_name'], config['angle']) = (FILE_PATH_AND_NAME, SUPPORTED_ANGLES.index(FILE_ANGLE))
+    rospy.loginfo('Reconfiugre Request: {angle_index}, {file_path_name}.'.format(**config))
+    load_data(config['file_path_name'], config['angle_index'])
+    (config['file_path_name'], config['angle_index']) = (FILE_PATH_NAME, ANGLE_INDEX)
     return config
 
 
@@ -94,7 +95,7 @@ if __name__ == '__main__':
         rms_L_pub = rospy.Publisher(RMS_TOPIC_NAME + '/L', Float32, queue_size=1)
         rms_R_pub = rospy.Publisher(RMS_TOPIC_NAME + '/R', Float32, queue_size=1)
 
-        rospy.Subscriber('~angle', Int32, lambda data: load_data(angle=data.data))
+        rospy.Subscriber('~angle_index', UInt8, lambda data: load_data(angle_index=data.data))
         rospy.Subscriber('~file_path_name', String, lambda data: load_data(file_path_name=data.data))
 
         rospy.loginfo('"%s" starts publishing to "%s".' % (NODE_NAME, TOPIC_NAME))
@@ -124,7 +125,7 @@ if __name__ == '__main__':
             data_start = data_stop if data_stop < data_L.shape[0] else 0
             rate.sleep()
 
-    except rospy.ROSInterruptException:
-        pass
+    except rospy.ROSInterruptException as e:
+        rospy.logerr(e)
     finally:
         pass

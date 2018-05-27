@@ -49,7 +49,7 @@ def hsva_to_rgba(h, s, v, a=1.0):
 
 def visualizer():
     rospy.init_node(NODE_NAME, anonymous=False)
-    marker_publisher = rospy.Publisher(PUB_TOPIC_NAME, Marker, queue_size=1)
+    marker_publisher = rospy.Publisher(PUB_TOPIC_NAME, Marker, queue_size=5)
 
     def mso_cb(data):
         t1 = time.time()

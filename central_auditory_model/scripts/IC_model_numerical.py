@@ -9,15 +9,14 @@ from collections import deque
 import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
-from std_msgs.msg import Int16, Int16MultiArray
-from std_msgs.msg import Float32MultiArray
-# from binaural_microphone.msg import BinauralAudio
+from std_msgs.msg import UInt8
 from ipem_module.msg import AuditoryNerveImage
+from central_auditory_model.msg import AngleEstimation
 
 # ROS
 NODE_NAME = 'nengo_ic_model'
-PUB_TOPIC_NAME = '/central_auditory_model/ic_stream/index'
-VOTE_RESULT_TOPIC_NAME = '/central_auditory_model/ic_stream/vote'
+ANGLE_ESTIMATION_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
+ANGLE_INDEX_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_index'
 SUB_MSO_TOPIC_NAME = '/central_auditory_model/mso_stream'
 SUB_LSO_TOPIC_NAME = '/central_auditory_model/lso_stream'
 
@@ -58,9 +57,8 @@ def run_IC_model():
     rospy.Subscriber(SUB_MSO_TOPIC_NAME, AuditoryNerveImage, mso_cb)
     rospy.Subscriber(SUB_LSO_TOPIC_NAME, AuditoryNerveImage, lso_cb)
 
-    # ic_pub = [rospy.Publisher('%s_%d' % (PUB_TOPIC_NAME, i), Float32, queue_size=1) for i in range(7)]
-    ic_pub = rospy.Publisher(PUB_TOPIC_NAME, Int16, queue_size=1)
-    vote_pub = rospy.Publisher(VOTE_RESULT_TOPIC_NAME, Int16MultiArray, queue_size=1)
+    index_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
+    ang_est_pub = rospy.Publisher(ANGLE_ESTIMATION_TOPIC_NAME, AngleEstimation, queue_size=1)
 
     rospy.loginfo('"%s" starts subscribing to "%s" and "%s".' % (NODE_NAME, SUB_MSO_TOPIC_NAME, SUB_LSO_TOPIC_NAME))
 
@@ -107,15 +105,27 @@ def run_IC_model():
 
             print argmax_of_every_ch
 
-            vote_stat = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight)[0]  # NOTICE how th bin set up.
+            vote_result = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight)[0]  # NOTICE how th bin set up.
 
-            print vote_stat
+            print vote_result
 
-            vote_pub.publish(Int16MultiArray(data=vote_stat))
+            angle_index = np.argmax(vote_result)
 
-            angle_index = np.argmax(vote_stat)
+            ang_est_pub.publish(
+                AngleEstimation(
+                    header=Header(
+                        frame_id=NODE_NAME,
+                        stamp=rospy.Time.now()
+                    ),
+                    timecode=mso_msg.timecode,
+                    angle_estimastion=SUPPORTED_ANGLES[angle_index],
+                    angle_index=angle_index,
+                    votes=vote_result,
+                    supported_angles=SUPPORTED_ANGLES
+                )
+            )
             
-            ic_pub.publish(angle_index)
+            index_pub.publish(angle_index)
 
             rospy.loginfo('<%f> angle_estimate: (%d)%d' % (mso_msg.timecode.to_sec(), angle_index, SUPPORTED_ANGLES[angle_index]))
 
