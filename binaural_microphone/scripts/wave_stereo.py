@@ -22,6 +22,7 @@ PACKAGE_DIR_PATH = rospkg.RosPack().get_path('binaural_microphone')
 ANGLE_INDEX = 3
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
+# FILE_PATH_NAME = 'wave_stereo_db/pink_noise'
 FILE_PATH_NAME = 'wave_stereo_db/coffee'
 FILE_SAMPLE_RATE = 44100
 DOWN_SAMPLE_FACTOR = 2

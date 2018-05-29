@@ -24,7 +24,7 @@ SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
 def run_analysis():
     ang_idx_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
-    file_pn_pub = rospy.Publisher(FILE_PATH_NAME_TOPIC_NAME, String, queue_size=1)
+    # file_pn_pub = rospy.Publisher(FILE_PATH_NAME_TOPIC_NAME, String, queue_size=1)
 
     global capture_msg
     capture_msg = None
@@ -46,6 +46,7 @@ def run_analysis():
 
     capture_start = time.time() + 1.
     angle_list = []
+    delay_list = []
     bar = progressbar.ProgressBar(max_value=N_CAPTURE_SAMPLES)
     print 'analyzing (%d) %d' % (angle_index, SUPPORTED_ANGLES[angle_index])
 
@@ -59,21 +60,24 @@ def run_analysis():
         
         if capture_msg.timecode.to_sec() > capture_start:
             angle_list.append(capture_msg.angle_index)
+            delay_list.append(capture_msg.header.stamp.to_sec() - capture_msg.timecode.to_sec())
 
             n_msg = len(angle_list)
             bar.update(n_msg)
             if n_msg >= N_CAPTURE_SAMPLES:
                 bar.finish()
 
-                stat_result = np.histogram(np.array(angle_list), bins=np.arange(len(SUPPORTED_ANGLES) + 1))[0].astype(np.float) / n_msg                
+                angle_stat = np.histogram(angle_list, bins=np.arange(len(SUPPORTED_ANGLES) + 1))[0].astype(np.float) / n_msg
+                delay_stat = (np.mean(delay_list), np.std(delay_list))
 
-                print n_msg, stat_result
+                print n_msg, angle_stat, delay_stat
 
                 angle_index = angle_index + 1 if angle_index < len(SUPPORTED_ANGLES) - 1 else 0
                 ang_idx_pub.publish(angle_index)
 
                 capture_start = time.time() + 1.
                 angle_list = []
+                delay_list = []
                 bar = progressbar.ProgressBar(max_value=N_CAPTURE_SAMPLES)
                 print 'analyzing (%d) %d' % (angle_index, SUPPORTED_ANGLES[angle_index])
 

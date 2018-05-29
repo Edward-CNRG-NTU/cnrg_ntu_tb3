@@ -22,7 +22,9 @@ CHUNK_SIZE = 1024
 N_SUBCHANNELS = 40
 
 # MODEL
-DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.1, -0.05]  # [-0.05, -0.1, -0.15, -0.25, -0.35, -0.4, -0.45]
+# DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.1, -0.1, 0.]   # 0.5425
+# DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.1, -0.05]  # 0.61
+DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.05, -0.00]  # 0.7775
 DECAY_VALUE_R = list(reversed(DECAY_VALUE))
 N_DECAY_VAL = len(DECAY_VALUE)
 
@@ -33,7 +35,7 @@ MAXPOOLING_OVERLAP = MAXPOOLING_WINDOW - MAXPOOLING_STEP
 
 
 # SIMULATION
-MAX_DELAY = 5.
+MAX_DELAY = 1.
 MAX_STEPS = int(MAX_DELAY * SAMPLE_RATE)
 SIM_CHUNK_SIZE = CHUNK_SIZE
 SIM_OUTPUT_SIZE = SIM_CHUNK_SIZE / MAXPOOLING_STEP
@@ -168,7 +170,7 @@ def run_LSO_model():
             # print reformed_L_data.shape, reformed_R_data.shape
             sim.run_steps(SIM_OUTPUT_SIZE, progress_bar=False, input_feeds={in_L: reformed_L_data, in_R: reformed_R_data})
 
-            lso_data = np.abs(sim.model.params[out_probe][-1]) <= 0.5
+            lso_data = np.abs(sim.model.params[out_probe][-1]) <= 0.3
             lso_data = np.swapaxes(lso_data, 0, 2)
             lso_msg = AuditoryNerveImage(header=Header(
                                             stamp=rospy.Time.now()

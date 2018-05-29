@@ -30,7 +30,7 @@ DELAY_STEPS_R = list(reversed(DELAY_STEPS))
 N_DELAY_VAL = len(DELAY_STEPS)
 MAXPOOLING = 100
 
-SIM_SKIP_FACTOR = 2
+SIM_SKIP_FACTOR = 4
 SIM_OUTPUT_SIZE = SIM_CHUNK_SIZE / SIM_SKIP_FACTOR
 
 MAXPOOLING_WINDOW = 256
@@ -166,7 +166,7 @@ def run_MSO_model():
                                         left_channel=mso_data.reshape(-1),
                                         right_channel=[])
             mso_pub.publish(mso_msg)
-            print '[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_OUTPUT_SIZE, timeit.default_timer() - t2, yet_to_run)
+            rospy.logwarn('[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_OUTPUT_SIZE, timeit.default_timer() - t2, yet_to_run))
         # TODO: handle timeout and not directly exit.
 
 

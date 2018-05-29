@@ -6,13 +6,14 @@ import time
 import rospy, tf
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
-from std_msgs.msg import Header, Float32, ColorRGBA, Int16MultiArray
+from std_msgs.msg import Header, Float32, ColorRGBA
+from central_auditory_model.msg import AngleEstimation
 
 
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
 NODE_NAME = 'viz_IC'
-SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/vote'
+SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
 PUB_TOPIC_NAME = '/visualization_marker'
 
 FRAME_ID = '/map'
@@ -24,15 +25,14 @@ def visualizer():
 
     def ic_cb(data):
         t1 = time.time()
-        angle_estimate = np.argmax(data.data)
-        # confidence = float(data.data[angle_estimate]) / sum(data.data)
+        # confidence = float(data.votes[data.angle_index]) / sum(data.votes)
         # marker = Marker(
         #     header=Header(frame_id=FRAME_ID),
         #     ns=NODE_NAME,
         #     id=2,
         #     type=Marker.ARROW,
         #     action=Marker.ADD,
-        #     pose=Pose(Point(0.0, 0.0, 0.0), Quaternion(*tf.transformations.quaternion_from_euler(0., 0., SUPPORTED_ANGLES[angle_estimate] * np.pi / 180.))),
+        #     pose=Pose(Point(0.0, 0.0, 0.0), Quaternion(*tf.transformations.quaternion_from_euler(0., 0., SUPPORTED_ANGLES[data.angle_index] * np.pi / 180.))),
         #     scale=Vector3(confidence, 0.1, 0.1),
         #     color=ColorRGBA(1.0, 0.0, 0.0, 1.0),
         #     lifetime=rospy.Duration(0.1),
@@ -40,9 +40,9 @@ def visualizer():
         # )
         # marker_publisher.publish(marker)
 
-        all_votes = sum(data.data)
+        all_votes = sum(data.votes)
 
-        for (i, vote) in enumerate(data.data):
+        for (i, vote) in enumerate(data.votes):
             confidence = max(float(vote) / all_votes, 0.001)
             # confidence = 1
             marker = Marker(
@@ -58,7 +58,7 @@ def visualizer():
                 frame_locked=True,
             )
 
-            if i == angle_estimate:
+            if i == data.angle_index:
                 marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)
 
             marker_publisher.publish(marker)
@@ -66,7 +66,7 @@ def visualizer():
         rospy.loginfo(time.time() - t1)
         
 
-    rospy.Subscriber(SUB_TOPIC_NAME, Int16MultiArray, ic_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AngleEstimation, ic_cb)
 
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 

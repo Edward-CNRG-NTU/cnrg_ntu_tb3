@@ -94,8 +94,11 @@ def run_IC_model():
             mso_data = np.array(mso_msg.left_channel).reshape(mso_msg.shape)
             lso_data = np.array(lso_msg.left_channel).reshape(lso_msg.shape)
 
-            low_freq = 10. * mso_data[:, :2, :18]
-            high_freq = 5. * mso_data[:, :2, 18:] * lso_data[:, :2, 18:]
+            n_steps = mso_msg.shape[1]
+
+            low_freq = 10. * mso_data[:, :n_steps, :18]
+            # high_freq = 5. * mso_data[:, :n_steps, 18:] * lso_data[:, :n_steps, 18:]
+            high_freq = 5. * mso_data[:, :n_steps, 18:] * np.min(lso_data[:, :, 18:], axis=1, keepdims=True)
 
             ic_result = np.concatenate([low_freq, high_freq], axis=2)
 
