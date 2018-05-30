@@ -53,10 +53,10 @@ def visualizer():
 
     def mso_cb(data):
         t1 = time.time()
-        data_np = np.max(np.array(data.left_channel).reshape(data.shape), axis=1, keepdims=True) / 2.4
+        data_np = np.clip(np.max(np.array(data.left_channel).reshape(data.shape), axis=1, keepdims=True) / 2.4, 0, 1)
 
         points = [Point(t * X_SPACING, 0.85 - i * Y_SPACING, ch * Z_SPACING) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
-        colors = [ColorRGBA(*hsva_to_rgba(0.67 - 0.66 * data_np[i, t, ch], 1., 1., np.clip(data_np[i, t, ch], 0, 1) if data_np[i, t, ch] != max(data_np[:, t, ch]) else 1.)) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
+        colors = [ColorRGBA(*hsva_to_rgba(0.67 - 0.67 * data_np[i, t, ch], 1., 1., data_np[i, t, ch] if data_np[i, t, ch] != max(data_np[:, t, ch]) else 1.)) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
 
         marker = Marker(
             header=Header(frame_id=FRAME_ID),

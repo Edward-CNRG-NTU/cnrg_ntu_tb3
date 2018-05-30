@@ -11,3 +11,7 @@ ipem_module/dev_src/
 card_game/scripts/\.idea/workspace\.xml
 
 card_game/scripts/\.idea/
+
+\.idea/
+
+\.vscode/

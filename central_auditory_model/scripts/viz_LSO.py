@@ -51,12 +51,12 @@ def visualizer():
     rospy.init_node(NODE_NAME, anonymous=False)
     marker_publisher = rospy.Publisher(PUB_TOPIC_NAME, Marker, queue_size=5)
 
-    def mso_cb(data):
+    def lso_cb(data):
         t1 = time.time()
-        data_np = np.array(data.left_channel).reshape(data.shape)
+        data_np = np.clip(np.min(np.array(data.left_channel).reshape(data.shape), axis=1, keepdims=True), 0, 1)
 
         points = [Point(t * X_SPACING, 0.85 - i * Y_SPACING, ch * Z_SPACING) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
-        colors = [ColorRGBA(*hsva_to_rgba(1., 0., 1., np.clip(data_np[i, t, ch], 0, 0.3))) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
+        colors = [ColorRGBA(*hsva_to_rgba(1., 0., 1., data_np[i, t, ch])) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
 
         marker = Marker(
             header=Header(frame_id=FRAME_ID),
@@ -76,7 +76,7 @@ def visualizer():
 
         rospy.loginfo(time.time() - t1)
 
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, mso_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, lso_cb)
 
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 

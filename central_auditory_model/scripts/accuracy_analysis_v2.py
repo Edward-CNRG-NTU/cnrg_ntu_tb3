@@ -11,6 +11,7 @@ from std_msgs.msg import UInt8
 from std_msgs.msg import String
 from std_msgs.msg import Header
 from central_auditory_model.msg import AngleEstimation
+from confusion_matrix import draw_confusion_matrix
 
 
 NODE_NAME = 'accuracy_analysis'
@@ -20,7 +21,6 @@ SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
 
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
-
 
 def run_analysis():
     ang_idx_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
@@ -47,6 +47,7 @@ def run_analysis():
     capture_start = time.time() + 1.
     angle_list = []
     delay_list = []
+    angle_stat_list = []
     bar = progressbar.ProgressBar(max_value=N_CAPTURE_SAMPLES)
     print 'analyzing (%d) %d' % (angle_index, SUPPORTED_ANGLES[angle_index])
 
@@ -70,9 +71,18 @@ def run_analysis():
                 angle_stat = np.histogram(angle_list, bins=np.arange(len(SUPPORTED_ANGLES) + 1))[0].astype(np.float) / n_msg
                 delay_stat = (np.mean(delay_list), np.std(delay_list))
 
+                angle_stat_list.append(angle_stat)
+
                 print n_msg, angle_stat, delay_stat
 
-                angle_index = angle_index + 1 if angle_index < len(SUPPORTED_ANGLES) - 1 else 0
+                if angle_index < len(SUPPORTED_ANGLES) - 1:
+                    angle_index = angle_index + 1
+                else:
+                    draw_confusion_matrix(angle_stat_list, classes=SUPPORTED_ANGLES)
+                    angle_index = 0
+                    angle_stat_list = []
+
+                # angle_index = angle_index + 1 if angle_index < len(SUPPORTED_ANGLES) - 1 else 0
                 ang_idx_pub.publish(angle_index)
 
                 capture_start = time.time() + 1.

@@ -43,10 +43,14 @@ OUTPUT_RATE = SAMPLE_RATE / MAXPOOLING_STEP
 
 
 synapse_node_ens = 0
-synapse_ens_node = 0
+synapse_ens_ILD = 0
+synapse_ILD_node = 0
 synapse_probe = 0
 
-radius_ens = 5.
+radius_ens = 1.5
+radius_ILD = 3.0
+
+seed = 6666
 
 
 def maxpooling(a, window=MAXPOOLING_WINDOW, step=MAXPOOLING_STEP, axis=-1):
@@ -68,15 +72,22 @@ def build_nengo_model():
 
         return decibel_function
 
+    def output_function(x):
+        if np.abs(x) <= 0.2:
+            return 1.0
+        else:
+            return 0.
 
     with nengo.Network(label="LSO_Jeffress_Model") as model:
-        n_neurons = 32
+        n_neurons = 64
 
         input_L = nengo.Node([0], label='input_node_L')
         input_R = nengo.Node([0], label='input_node_R')
 
-        ens_L = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_L')
-        ens_R = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_R')
+        ens_L = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_L', seed=seed)
+        ens_R = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_R', seed=seed)
+
+        ens_arr_ILD = [nengo.Ensemble(n_neurons, 1, radius=radius_ILD, neuron_type=lifrate_model, max_rates=max_r, label='ens_arr_ILD', seed=seed) for i in range(N_DECAY_VAL)]
 
         output_node = nengo.Node(size_in=N_DECAY_VAL, size_out=N_DECAY_VAL, label='output_node')
 
@@ -84,10 +95,11 @@ def build_nengo_model():
         nengo.Connection(input_R, ens_R, synapse=synapse_node_ens)
 
         for i in range(N_DECAY_VAL):
-            nengo.Connection(ens_L, output_node[i], synapse=synapse_ens_node,
+            nengo.Connection(ens_L, ens_arr_ILD[i], synapse=synapse_ens_ILD,
                              function=decibel_function_factory(level_offset=DECAY_VALUE[i], sign=1.))
-            nengo.Connection(ens_R, output_node[i], synapse=synapse_ens_node,
+            nengo.Connection(ens_R, ens_arr_ILD[i], synapse=synapse_ens_ILD,
                              function=decibel_function_factory(level_offset=DECAY_VALUE_R[i], sign=-1.))
+            nengo.Connection(ens_arr_ILD[i], output_node[i], synapse=synapse_ILD_node, function=output_function)
         
         output_probe = nengo.Probe(output_node, label='output_probe', synapse=synapse_probe)  # , sample_every=0.01
 
@@ -123,6 +135,7 @@ def run_LSO_model():
         else:
             dl_L.update(ani_L, timecode=data.timecode)
             dl_R.update(ani_R)
+            # rospy.logwarn('%f %f' % (ani_L.min(), ani_L.max()))
             event.set()
 
     lso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImage, queue_size=1)
@@ -170,8 +183,9 @@ def run_LSO_model():
             # print reformed_L_data.shape, reformed_R_data.shape
             sim.run_steps(SIM_OUTPUT_SIZE, progress_bar=False, input_feeds={in_L: reformed_L_data, in_R: reformed_R_data})
 
-            lso_data = np.abs(sim.model.params[out_probe][-1]) <= 0.3
-            lso_data = np.swapaxes(lso_data, 0, 2)
+            # rospy.logwarn(sim.model.params[out_probe][-1].shape)
+            lso_data = np.swapaxes(sim.model.params[out_probe][-1], 0, 2)
+            # rospy.logwarn(lso_data)
             lso_msg = AuditoryNerveImage(header=Header(
                                             stamp=rospy.Time.now()
                                         ),
