@@ -18,28 +18,26 @@ SUB_TOPIC_NAME = '/ipem_module/apm_stream'
 
 # SIGNAL
 SAMPLE_RATE = 11025
-CHUNK_SIZE = 1024
+SRC_CHUNK_SIZE = 1024
 N_SUBCHANNELS = 40
 
 # MODEL
-# DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.1, -0.1, 0.]   # 0.5425
-# DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.1, -0.05]  # 0.61
-DECAY_VALUE = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.05, -0.00]  # 0.7775
-DECAY_VALUE_R = list(reversed(DECAY_VALUE))
-N_DECAY_VAL = len(DECAY_VALUE)
+# DECAY_VALUE_L = [-0.45, -0.4, -0.35, -0.25, -0.1, -0.1, 0.]   # 0.5425
+# DECAY_VALUE_L = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.1, -0.05]  # 0.61
+DECAY_VALUE_L = [-0.45, -0.4, -0.35, -0.25, -0.15, -0.05, -0.00]  # 0.7775
+DECAY_VALUE_R = list(reversed(DECAY_VALUE_L))
+N_DECAY_VAL = len(DECAY_VALUE_L)
 
 # MAXPOOLING
 MAXPOOLING_WINDOW = 256
 MAXPOOLING_STEP = 256
 MAXPOOLING_OVERLAP = MAXPOOLING_WINDOW - MAXPOOLING_STEP
 
-
 # SIMULATION
 MAX_DELAY = 1.
 MAX_STEPS = int(MAX_DELAY * SAMPLE_RATE)
-SIM_CHUNK_SIZE = CHUNK_SIZE
-SIM_OUTPUT_SIZE = SIM_CHUNK_SIZE / MAXPOOLING_STEP
-OUTPUT_RATE = SAMPLE_RATE / MAXPOOLING_STEP
+SIM_CHUNK_SIZE = SRC_CHUNK_SIZE / MAXPOOLING_STEP
+OUT_SAMPLE_RATE = SAMPLE_RATE / MAXPOOLING_STEP
 
 
 synapse_node_ens = 0
@@ -96,7 +94,7 @@ def build_nengo_model():
 
         for i in range(N_DECAY_VAL):
             nengo.Connection(ens_L, ens_arr_ILD[i], synapse=synapse_ens_ILD,
-                             function=decibel_function_factory(level_offset=DECAY_VALUE[i], sign=1.))
+                             function=decibel_function_factory(level_offset=DECAY_VALUE_L[i], sign=1.))
             nengo.Connection(ens_R, ens_arr_ILD[i], synapse=synapse_ens_ILD,
                              function=decibel_function_factory(level_offset=DECAY_VALUE_R[i], sign=-1.))
             nengo.Connection(ens_arr_ILD[i], output_node[i], synapse=synapse_ILD_node, function=output_function)
@@ -104,14 +102,14 @@ def build_nengo_model():
         output_probe = nengo.Probe(output_node, label='output_probe', synapse=synapse_probe)  # , sample_every=0.01
 
         nengo_dl.configure_settings(session_config={"gpu_options.allow_growth": True})
-        simulator = nengo_dl.Simulator(model, dt=(1. / OUTPUT_RATE), unroll_simulation=SIM_OUTPUT_SIZE, minibatch_size=N_SUBCHANNELS)
+        simulator = nengo_dl.Simulator(model, dt=(1. / OUT_SAMPLE_RATE), unroll_simulation=SIM_CHUNK_SIZE, minibatch_size=N_SUBCHANNELS)
 
     return simulator, input_L, input_R, output_probe   
 
 
 def run_LSO_model():    
-    ani_L = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
-    ani_R = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])    
+    ani_L = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])
+    ani_R = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])    
     ani_L_1d = ani_L.ravel() # create an 1-D view into ani_L, must use ravel().
     ani_R_1d = ani_R.ravel() # create an 1-D view into ani_L, must use ravel().
 
@@ -123,8 +121,8 @@ def run_LSO_model():
     event = threading.Event()
 
     def ani_cb(data):        
-        if data.chunk_size != CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
-            rospy.logwarn('NOT IMPLEMENT YET: dynamic CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
+        if data.chunk_size != SRC_CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+            rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
         try:
             ani_L_1d[:] = data.left_channel
@@ -144,7 +142,7 @@ def run_LSO_model():
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):
-        yet_to_run = dl_R.n_steps - sim.n_steps * MAXPOOLING_STEP - SIM_CHUNK_SIZE
+        yet_to_run = dl_R.n_steps - sim.n_steps * MAXPOOLING_STEP - SRC_CHUNK_SIZE
 
         if yet_to_run == 0:
             event.clear()
@@ -160,7 +158,7 @@ def run_LSO_model():
 
         try:
             view_start = sim.n_steps * MAXPOOLING_STEP - MAXPOOLING_OVERLAP
-            view_len = SIM_CHUNK_SIZE + MAXPOOLING_OVERLAP
+            view_len = SRC_CHUNK_SIZE + MAXPOOLING_OVERLAP
             timecode = dl_L.get_timecode(view_start + MAXPOOLING_OVERLAP)
             timecode_2 = dl_L.get_timecode(view_start + view_len - 1)
             
@@ -181,7 +179,7 @@ def run_LSO_model():
             reformed_L_data = np.swapaxes(in_L_data, 0, 2)
             reformed_R_data = np.swapaxes(in_R_data, 0, 2)
             # print reformed_L_data.shape, reformed_R_data.shape
-            sim.run_steps(SIM_OUTPUT_SIZE, progress_bar=False, input_feeds={in_L: reformed_L_data, in_R: reformed_R_data})
+            sim.run_steps(SIM_CHUNK_SIZE, progress_bar=False, input_feeds={in_L: reformed_L_data, in_R: reformed_R_data})
 
             # rospy.logwarn(sim.model.params[out_probe][-1].shape)
             lso_data = np.swapaxes(sim.model.params[out_probe][-1], 0, 2)
@@ -190,15 +188,15 @@ def run_LSO_model():
                                             stamp=rospy.Time.now()
                                         ),
                                         timecode=timecode,
-                                        sample_rate=OUTPUT_RATE,
-                                        chunk_size=SIM_OUTPUT_SIZE,
+                                        sample_rate=OUT_SAMPLE_RATE,
+                                        chunk_size=SIM_CHUNK_SIZE,
                                         n_subchannels=N_SUBCHANNELS,
                                         shape=lso_data.shape,
                                         info='(direction, chunk_size, n_subchannels)',
                                         left_channel=lso_data.reshape(-1),
                                         right_channel=[])
             lso_pub.publish(lso_msg)
-            print '[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_OUTPUT_SIZE, timeit.default_timer() - t2, yet_to_run)
+            print '[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run)
 
 
 if __name__ == '__main__':

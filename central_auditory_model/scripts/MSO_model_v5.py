@@ -28,11 +28,11 @@ DELAY_STEPS_L = [9, 8, 6, 4, 3, 1, 0]
 DELAY_STEPS_R = list(reversed(DELAY_STEPS_L))
 N_DELAY_VAL = len(DELAY_STEPS_L)
 
-SIM_SKIP_FACTOR = 4
-SIM_CHUNK_SIZE = SRC_CHUNK_SIZE / SIM_SKIP_FACTOR
-
 MAXPOOLING_STEP = 256
 OUT_SAMPLE_RATE = SRC_SAMPLE_RATE / MAXPOOLING_STEP
+
+SIM_EXPLICIT_UNROLL = MAXPOOLING_STEP
+SIM_CHUNK_SIZE = SRC_CHUNK_SIZE / SIM_EXPLICIT_UNROLL
 
 
 synapse_node_ens = 0
@@ -116,7 +116,7 @@ def run_MSO_model():
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.):
-        yet_to_run = dl_R.n_steps - sim.n_steps * SIM_SKIP_FACTOR - SRC_CHUNK_SIZE
+        yet_to_run = dl_R.n_steps - sim.n_steps * SIM_EXPLICIT_UNROLL - SRC_CHUNK_SIZE
 
         if yet_to_run == 0:
             event.clear()
@@ -131,7 +131,7 @@ def run_MSO_model():
         t2 = timeit.default_timer()
 
         try:
-            view_start = sim.n_steps * SIM_SKIP_FACTOR
+            view_start = sim.n_steps * SIM_EXPLICIT_UNROLL
             timecode = dl_L.get_timecode(view_start)
             assert timecode == dl_L.get_timecode(view_start + SIM_CHUNK_SIZE - 1), 'Timecode out of sync!'            
             in_L_data = dl_L.batch_view_chunk(view_start, SIM_CHUNK_SIZE, delay_steps=DELAY_STEPS_L)
@@ -158,7 +158,7 @@ def run_MSO_model():
                                         ),
                                         timecode=timecode,
                                         sample_rate=OUT_SAMPLE_RATE,
-                                        chunk_size=SIM_SKIP_FACTOR,
+                                        chunk_size=SIM_CHUNK_SIZE,
                                         n_subchannels=N_SUBCHANNELS,
                                         shape=mso_data.shape,
                                         info='(direction, chunk_size, n_subchannels)',

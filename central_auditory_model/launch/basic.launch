@@ -12,6 +12,6 @@
   
 
   <node pkg="central_auditory_model" name="MSO_model_v4_1" type="MSO_model_v4_1.py" respawn="true" />
-  <node pkg="central_auditory_model" name="LSO_model" type="LSO_model.py" respawn="true" />
+  <node pkg="central_auditory_model" name="LSO_model_v2" type="LSO_model_v2.py" respawn="true" />
   <node pkg="central_auditory_model" name="IC_model_numerical" type="IC_model_numerical.py" respawn="true" />
 </launch>
