@@ -19,12 +19,14 @@ ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
 SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
 
+FILE_PATH_NAME = 'wave_stereo_db/pink_noise'
+
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
 def run_analysis():
     ang_idx_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
-    # file_pn_pub = rospy.Publisher(FILE_PATH_NAME_TOPIC_NAME, String, queue_size=1)
+    file_pn_pub = rospy.Publisher(FILE_PATH_NAME_TOPIC_NAME, String, queue_size=1)
 
     global capture_msg
     capture_msg = None
@@ -37,12 +39,13 @@ def run_analysis():
 
     rospy.Subscriber(SUB_TOPIC_NAME, AngleEstimation, angle_estim_cb)
 
-    time.sleep(1.)
+    time.sleep(1.)    
 
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 
     angle_index = 0
     ang_idx_pub.publish(angle_index)
+    file_pn_pub.publish(FILE_PATH_NAME)
 
     capture_start = time.time() + 1.
     angle_list = []

@@ -9,9 +9,12 @@
 
   <arg name='ipem' default="false"/>
   <include file="$(find ipem_module)/launch/basic.launch" if="$(arg ipem)"/>
-  
 
-  <node pkg="central_auditory_model" name="MSO_model_v4_1" type="MSO_model_v4_1.py" respawn="true" />
-  <node pkg="central_auditory_model" name="LSO_model_v2" type="LSO_model_v2.py" respawn="true" />
-  <node pkg="central_auditory_model" name="IC_model_numerical" type="IC_model_numerical.py" respawn="true" />
+  <arg name='mso' default="true"/>
+  <arg name='lso' default="true"/>
+  <arg name='ic' default="true"/>  
+
+  <node pkg="central_auditory_model" name="MSO_model_v5" type="MSO_model_v5.py" respawn="true" if="$(arg mso)" />
+  <node pkg="central_auditory_model" name="LSO_model_v2" type="LSO_model_v2.py" respawn="true" if="$(arg lso)" />
+  <node pkg="central_auditory_model" name="IC_model_numerical_v2" type="IC_model_numerical_v2.py" respawn="true" if="$(arg ic)" />
 </launch>

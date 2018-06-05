@@ -96,8 +96,8 @@ if __name__ == '__main__':
         rms_L_pub = rospy.Publisher(RMS_TOPIC_NAME + '/L', Float32, queue_size=1)
         rms_R_pub = rospy.Publisher(RMS_TOPIC_NAME + '/R', Float32, queue_size=1)
 
-        rospy.Subscriber('~angle_index', UInt8, lambda data: load_data(angle_index=data.data))
-        rospy.Subscriber('~file_path_name', String, lambda data: load_data(file_path_name=data.data))
+        rospy.Subscriber('~angle_index', UInt8, lambda data: load_data(file_path_name=FILE_PATH_NAME, angle_index=data.data))
+        rospy.Subscriber('~file_path_name', String, lambda data: load_data(file_path_name=data.data, angle_index=ANGLE_INDEX))
 
         rospy.loginfo('"%s" starts publishing to "%s".' % (NODE_NAME, TOPIC_NAME))
 

@@ -18,7 +18,7 @@ SUB_TOPIC_NAME = '/ipem_module/apm_stream'
 SRC_SAMPLE_RATE = 11025
 SRC_CHUNK_SIZE = 1024
 N_SUBCHANNELS = 40
-MAX_DELAY = 5.
+MAX_DELAY = 3.
 MAX_STEPS = int(MAX_DELAY * SRC_SAMPLE_RATE)
 
 # DELAY_STEPS_L = [10, 9, 7, 5, 3, 1, 0]  # [0, 1, 3, 5, 7, 9, 10]
@@ -31,8 +31,8 @@ N_DELAY_VAL = len(DELAY_STEPS_L)
 MAXPOOLING_STEP = 256
 OUT_SAMPLE_RATE = SRC_SAMPLE_RATE / MAXPOOLING_STEP
 
-SIM_EXPLICIT_UNROLL = MAXPOOLING_STEP
-SIM_CHUNK_SIZE = SRC_CHUNK_SIZE / SIM_EXPLICIT_UNROLL
+SIM_PARALLEL_FACTOR = SRC_CHUNK_SIZE / MAXPOOLING_STEP
+SIM_CHUNK_SIZE = MAXPOOLING_STEP
 
 
 synapse_node_ens = 0
@@ -76,7 +76,7 @@ def build_nengo_model():
         output_probe = nengo.Probe(output_node, label='output_node_probe', synapse=synapse_probe)  # , sample_every=0.01
 
         nengo_dl.configure_settings(session_config={"gpu_options.allow_growth": True})
-        simulator = nengo_dl.Simulator(model, dt=(1. / SRC_SAMPLE_RATE), unroll_simulation=32, minibatch_size=N_DELAY_VAL * N_SUBCHANNELS)
+        simulator = nengo_dl.Simulator(model, dt=(1. / SRC_SAMPLE_RATE), unroll_simulation=32, minibatch_size=N_DELAY_VAL * N_SUBCHANNELS * SIM_PARALLEL_FACTOR)
 
     return simulator, input_node_L, input_node_R, output_probe   
 
@@ -116,7 +116,9 @@ def run_MSO_model():
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.):
-        yet_to_run = dl_R.n_steps - sim.n_steps * SIM_EXPLICIT_UNROLL - SRC_CHUNK_SIZE
+        t2 = timeit.default_timer()
+        view_start = sim.n_steps * SIM_PARALLEL_FACTOR
+        yet_to_run = dl_R.n_steps - view_start - SRC_CHUNK_SIZE
 
         if yet_to_run == 0:
             event.clear()
@@ -128,26 +130,31 @@ def run_MSO_model():
             event.clear()
             continue
 
-        t2 = timeit.default_timer()
-
         try:
-            view_start = sim.n_steps * SIM_EXPLICIT_UNROLL
             timecode = dl_L.get_timecode(view_start)
-            assert timecode == dl_L.get_timecode(view_start + SIM_CHUNK_SIZE - 1), 'Timecode out of sync!'            
-            in_L_data = dl_L.batch_view_chunk(view_start, SIM_CHUNK_SIZE, delay_steps=DELAY_STEPS_L)
-            in_R_data = dl_R.batch_view_chunk(view_start, SIM_CHUNK_SIZE, delay_steps=DELAY_STEPS_R)
+            # timecode_2 = dl_L.get_timecode(view_start + SRC_CHUNK_SIZE - 1)
+            # assert timecode == timecode_2, 'Timecode out of sync!'
+            # if timecode != timecode_2:
+            #     rospy.logwarn('Timecode out of sync!')
+            #     global N_SUBCHANNELS
+            #     N_SUBCHANNELS = 0
+            #     for i in range(SRC_CHUNK_SIZE):
+            #         print i, dl_L.get_timecode(view_start + i).to_sec()
+            #     assert timecode == timecode_2, 'Timecode out of sync! %f, %f' % (timecode.to_sec(), timecode_2.to_sec())                    
+            in_L_data = dl_L.batch_view_chunk(view_start, SRC_CHUNK_SIZE, delay_steps=DELAY_STEPS_L)
+            in_R_data = dl_R.batch_view_chunk(view_start, SRC_CHUNK_SIZE, delay_steps=DELAY_STEPS_R)
         except ValueError:
-            print 'ValueError occur, skipping...'
+            rospy.logwarn('ValueError occur, skipping...')
             continue
         else:
             # print in_L_data.shape
-            reformed_L_data = np.swapaxes(in_L_data, 1, 2).reshape((N_DELAY_VAL * N_SUBCHANNELS, SIM_CHUNK_SIZE, 1))
-            reformed_R_data = np.swapaxes(in_R_data, 1, 2).reshape((N_DELAY_VAL * N_SUBCHANNELS, SIM_CHUNK_SIZE, 1))
+            reformed_L_data = np.swapaxes(in_L_data, 1, 2).reshape((N_DELAY_VAL * N_SUBCHANNELS * SIM_PARALLEL_FACTOR, SIM_CHUNK_SIZE, 1))
+            reformed_R_data = np.swapaxes(in_R_data, 1, 2).reshape((N_DELAY_VAL * N_SUBCHANNELS * SIM_PARALLEL_FACTOR, SIM_CHUNK_SIZE, 1))
             # print reformed_L_data.shape
             sim.run_steps(SIM_CHUNK_SIZE, progress_bar=False, input_feeds={in_L: reformed_L_data, in_R: reformed_R_data})
             # print sim.model.params[out_probe][-1].shape
 
-            mso_data = sim.model.params[out_probe][-1].reshape((N_DELAY_VAL, N_SUBCHANNELS, SIM_CHUNK_SIZE))
+            mso_data = sim.model.params[out_probe][-1].reshape((N_DELAY_VAL, N_SUBCHANNELS, SRC_CHUNK_SIZE))
             mso_data = maxpooling(mso_data, window=MAXPOOLING_STEP, step=MAXPOOLING_STEP, axis=2)
             # print mso_data.shape
             mso_data = np.swapaxes(mso_data, 1, 2)
@@ -158,14 +165,14 @@ def run_MSO_model():
                                         ),
                                         timecode=timecode,
                                         sample_rate=OUT_SAMPLE_RATE,
-                                        chunk_size=SIM_CHUNK_SIZE,
+                                        chunk_size=SIM_PARALLEL_FACTOR,
                                         n_subchannels=N_SUBCHANNELS,
                                         shape=mso_data.shape,
                                         info='(direction, chunk_size, n_subchannels)',
                                         left_channel=mso_data.reshape(-1),
                                         right_channel=[])
             mso_pub.publish(mso_msg)
-            rospy.loginfo('[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run))
+            rospy.loginfo('[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SRC_CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run))
         # TODO: handle timeout and not directly exit.
 
 

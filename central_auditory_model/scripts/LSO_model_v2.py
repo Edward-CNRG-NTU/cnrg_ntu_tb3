@@ -29,8 +29,8 @@ DECAY_VALUE_R = list(reversed(DECAY_VALUE_L))
 N_DECAY_VAL = len(DECAY_VALUE_L)
 
 # MAXPOOLING
-MAXPOOLING_WINDOW = 256
 MAXPOOLING_STEP = 256
+MAXPOOLING_WINDOW = MAXPOOLING_STEP
 MAXPOOLING_OVERLAP = MAXPOOLING_WINDOW - MAXPOOLING_STEP
 
 # SIMULATION
@@ -85,19 +85,19 @@ def build_nengo_model():
         ens_L = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_L', seed=seed)
         ens_R = nengo.Ensemble(n_neurons, 1, radius=radius_ens, neuron_type=lifrate_model, max_rates=max_r, label='ens_R', seed=seed)
 
-        ens_arr_ILD = [nengo.Ensemble(n_neurons, 1, radius=radius_ILD, neuron_type=lifrate_model, max_rates=max_r, label='ens_arr_ILD', seed=seed) for i in range(N_DECAY_VAL)]
+        ens_ILD_list = [nengo.Ensemble(n_neurons, 1, radius=radius_ILD, neuron_type=lifrate_model, max_rates=max_r, label='ens_ILD_list', seed=seed) for i in range(N_DECAY_VAL)]
 
-        output_node = nengo.Node(size_in=N_DECAY_VAL, size_out=N_DECAY_VAL, label='output_node')
+        output_node = nengo.Node(size_in=N_DECAY_VAL, label='output_node')
 
         nengo.Connection(input_L, ens_L, synapse=synapse_node_ens)
         nengo.Connection(input_R, ens_R, synapse=synapse_node_ens)
 
         for i in range(N_DECAY_VAL):
-            nengo.Connection(ens_L, ens_arr_ILD[i], synapse=synapse_ens_ILD,
+            nengo.Connection(ens_L, ens_ILD_list[i], synapse=synapse_ens_ILD,
                              function=decibel_function_factory(level_offset=DECAY_VALUE_L[i], sign=1.))
-            nengo.Connection(ens_R, ens_arr_ILD[i], synapse=synapse_ens_ILD,
+            nengo.Connection(ens_R, ens_ILD_list[i], synapse=synapse_ens_ILD,
                              function=decibel_function_factory(level_offset=DECAY_VALUE_R[i], sign=-1.))
-            nengo.Connection(ens_arr_ILD[i], output_node[i], synapse=synapse_ILD_node, function=output_function)
+            nengo.Connection(ens_ILD_list[i], output_node[i], synapse=synapse_ILD_node, function=output_function)
         
         output_probe = nengo.Probe(output_node, label='output_probe', synapse=synapse_probe)  # , sample_every=0.01
 
