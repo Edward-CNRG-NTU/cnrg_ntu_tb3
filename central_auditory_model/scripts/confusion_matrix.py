@@ -9,6 +9,8 @@ SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 def draw_confusion_matrix(confusion_matrix, classes=SUPPORTED_ANGLES, show=True):
     confusion_matrix = np.asarray(confusion_matrix)
 
+    confusion_matrix = confusion_matrix[::-1, :]
+
     plt.imshow(confusion_matrix, interpolation='nearest', cmap=plt.cm.Blues)
     # plt.scatter(t*np.ones(7),angle_array,out[:,t]+1,color='r')
 
@@ -22,7 +24,7 @@ def draw_confusion_matrix(confusion_matrix, classes=SUPPORTED_ANGLES, show=True)
     plt.colorbar()
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
+    plt.yticks(tick_marks, reversed(classes))
 
     plt.xlabel('(Simulated) Source Angle (degree)')
     plt.ylabel('Estimated Angle (degree)')

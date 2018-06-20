@@ -31,16 +31,24 @@ SAMPLE_RATE = 22050
 CHUNK_SIZE= 1024
 
 
-def wave_preprocessing(wav):
+def wave_preprocessing(wav, stereo=False):
     assert wav.getsampwidth() == 2
-    assert wav.getnchannels() == 1
     assert wav.getframerate() == FILE_SAMPLE_RATE
-    assert wav.getframerate() / DOWN_SAMPLE_FACTOR == SAMPLE_RATE
+
     wav.rewind()
     wav_str = wav.readframes(wav.getnframes())
-    wav_np = np.frombuffer(wav_str, dtype=np.int16)[::DOWN_SAMPLE_FACTOR]
-    n_chunks = wav_np.shape[0] // CHUNK_SIZE + 1
-    return np.pad(wav_np, (0, n_chunks * CHUNK_SIZE - wav_np.shape[0],), mode='constant')
+
+    if not stereo:
+        assert wav.getnchannels() == 1
+        wav_np = np.frombuffer(wav_str, dtype=np.int16)[::DOWN_SAMPLE_FACTOR]
+        n_chunks = wav_np.shape[0] // CHUNK_SIZE + 1
+        return np.pad(wav_np, (0, n_chunks * CHUNK_SIZE - wav_np.shape[0],), mode='constant')
+    else:
+        assert wav.getnchannels() == 2    
+        wav_np = np.frombuffer(wav_str, dtype=np.int16).reshape([-1, 2])[::DOWN_SAMPLE_FACTOR, :]
+        n_chunks = wav_np.shape[0] // CHUNK_SIZE + 1
+        data_stereo = np.pad(wav_np, ((0, n_chunks * CHUNK_SIZE - wav_np.shape[0]), (0, 0)), mode='constant')
+        return data_stereo[:, 0], data_stereo[:, 1]
 
 
 def load_data(file_path_name=FILE_PATH_NAME, angle_index=ANGLE_INDEX):
@@ -57,18 +65,23 @@ def load_data(file_path_name=FILE_PATH_NAME, angle_index=ANGLE_INDEX):
 
     fn_L = '%s_%dL.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, SUPPORTED_ANGLES[angle_index])
     fn_R = '%s_%dR.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, SUPPORTED_ANGLES[angle_index])
-
-    if file_path_name is not FILE_PATH_NAME:
-        if os.path.isfile(fn_L) and os.path.isfile(fn_R):
+    fn_stereo = '%s_%d.wav' % (PACKAGE_DIR_PATH + '/' + file_path_name, SUPPORTED_ANGLES[angle_index])
+    
+    if os.path.isfile(fn_L) and os.path.isfile(fn_R):
+        if file_path_name is not FILE_PATH_NAME:
             FILE_PATH_NAME = file_path_name
             rospy.loginfo('file changed to: %s' % file_path_name)
-        else:
-            rospy.logwarn('files not found: %s, %s' % (fn_L, fn_R))
-            return
-
-    data_L = wave_preprocessing(wave.open(fn_L, 'rb'))
-    data_R = wave_preprocessing(wave.open(fn_R, 'rb'))
-
+        data_L = wave_preprocessing(wave.open(fn_L, 'rb'))
+        data_R = wave_preprocessing(wave.open(fn_R, 'rb'))
+    elif os.path.isfile(fn_stereo):
+        if file_path_name is not FILE_PATH_NAME:
+            FILE_PATH_NAME = file_path_name
+            rospy.loginfo('file changed to: %s' % file_path_name)
+        data_L, data_R = wave_preprocessing(wave.open(fn_stereo, 'rb'), stereo=True)
+    else:
+        rospy.logwarn('files not found: %s, %s or %s' % (fn_L, fn_R, fn_stereo))
+        return
+            
     data_start = 0
 
 
