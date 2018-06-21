@@ -19,7 +19,7 @@ ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
 SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
 
-FILE_PATH_NAME = 'wave_stereo_db/pink_noise'
+FILE_PATH_NAME = 'wave_stereo_db/corridor'
 
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]

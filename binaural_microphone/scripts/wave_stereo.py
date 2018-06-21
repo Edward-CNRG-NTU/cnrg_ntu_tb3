@@ -77,7 +77,7 @@ def load_data(file_path_name=FILE_PATH_NAME, angle_index=ANGLE_INDEX):
         if file_path_name is not FILE_PATH_NAME:
             FILE_PATH_NAME = file_path_name
             rospy.loginfo('file changed to: %s' % file_path_name)
-        data_L, data_R = wave_preprocessing(wave.open(fn_stereo, 'rb'), stereo=True)
+        (data_L, data_R) = wave_preprocessing(wave.open(fn_stereo, 'rb'), stereo=True)
     else:
         rospy.logwarn('files not found: %s, %s or %s' % (fn_L, fn_R, fn_stereo))
         return

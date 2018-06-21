@@ -9,7 +9,7 @@ SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 def draw_confusion_matrix(confusion_matrix, classes=SUPPORTED_ANGLES, show=True):
     confusion_matrix = np.asarray(confusion_matrix)
 
-    confusion_matrix = confusion_matrix[::-1, :]
+    confusion_matrix = confusion_matrix.T[::-1, :]
 
     plt.imshow(confusion_matrix, interpolation='nearest', cmap=plt.cm.Blues)
     # plt.scatter(t*np.ones(7),angle_array,out[:,t]+1,color='r')
@@ -34,12 +34,12 @@ def draw_confusion_matrix(confusion_matrix, classes=SUPPORTED_ANGLES, show=True)
 
 
 if __name__ == '__main__':
-    confusion_matrix = [[0.845, 0.155, 0.,    0.,    0.,    0.,    0.   ],
-                        [0., 1., 0., 0., 0., 0., 0.],
-                        [0., 0., 1., 0., 0., 0., 0.],
-                        [0., 0., 0., 1., 0., 0., 0.],
-                        [0., 0., 0., 0., 1., 0., 0.],
-                        [0.,   0.,   0.,   0.,   0.,   0.92, 0.08],
-                        [0., 0., 0., 0., 0., 0., 1.]
+    confusion_matrix = [[0.465,  0.0425, 0.015,  0.365,  0.,     0.,     0.1125],
+                        [0.305,  0.215,  0.0325, 0.29,   0.,     0.,     0.1575],
+                        [0.1325, 0.0125, 0.3325, 0.3125, 0.005,  0.0025, 0.2025],
+                        [0.1275, 0.015,  0.0025, 0.69,   0.,     0.,     0.165 ],
+                        [0.065,  0.0025, 0.0025, 0.4575, 0.365,  0.,     0.1075],
+                        [0.0675, 0.01,   0.0075, 0.3925, 0.035,  0.2175, 0.27  ],
+                        [0.1025, 0.015,  0.,     0.31,   0.0175, 0.015,  0.54  ]
     ]
     draw_confusion_matrix(confusion_matrix)

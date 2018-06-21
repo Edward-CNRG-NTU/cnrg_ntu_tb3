@@ -184,6 +184,8 @@ def run_LSO_model():
 
             # rospy.logwarn(sim.model.params[out_probe][-1].shape)
             lso_data = np.swapaxes(sim.model.params[out_probe][-1], 0, 2)
+            amp_data = (in_L_data + in_R_data) / 2.
+            # rospy.logwarn(amp_data.shape)
             # rospy.logwarn(lso_data)
             lso_msg = AuditoryNerveImage(header=Header(
                                             stamp=rospy.Time.now()
@@ -195,7 +197,7 @@ def run_LSO_model():
                                         shape=lso_data.shape,
                                         info='(direction, chunk_size, n_subchannels)',
                                         left_channel=lso_data.reshape(-1),
-                                        right_channel=[])
+                                        right_channel=amp_data.reshape(-1))
             lso_pub.publish(lso_msg)
             print '[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SIM_CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run)
 

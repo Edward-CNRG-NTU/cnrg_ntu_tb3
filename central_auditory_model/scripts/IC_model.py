@@ -139,6 +139,7 @@ def run_IC_model():
         if mso_msg.timecode.to_sec() == lso_msg.timecode.to_sec():
             mso_data = np.array(mso_msg.left_channel).reshape(mso_msg.shape)
             lso_data = np.array(lso_msg.left_channel).reshape(lso_msg.shape)
+            amp_data = np.array(lso_msg.right_channel).reshape((16, 40))
 
             sim.run_steps(CHUNK_SIZE, progress_bar=False, input_feeds={in_mso: mso_data, in_lso: lso_data})
 
@@ -150,11 +151,15 @@ def run_IC_model():
 
             print argmax_of_every_ch
 
-            vote_result = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight)[0]  # NOTICE how th bin set up.
+            amp_mean = np.mean(amp_data)
 
-            print vote_result
+            # rospy.logwarn(amp_data > amp_mean)
+
+            vote_result = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight * (amp_data > amp_mean))[0]  # NOTICE how th bin set up.
 
             angle_index = np.argmax(vote_result)
+
+            # rospy.logwarn(angle_index)
 
             ang_est_pub.publish(
                 AngleEstimation(
