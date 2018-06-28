@@ -7,7 +7,7 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
 from std_msgs.msg import Header, ColorRGBA
 from binaural_microphone.msg import BinauralAudio
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 NODE_NAME = 'ipem_visualize_split'
@@ -79,17 +79,16 @@ def visualizer():
     def ani_cb(data):        
         global CHUNK_SIZE, N_SUBCHANNELS, SAMPLE_RATE
         t1 = time.time()
-        if data.chunk_size != CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
-            CHUNK_SIZE = data.chunk_size
-            N_SUBCHANNELS = data.n_subchannels
+        if data.shape[1] != CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:
+            CHUNK_SIZE = data.shape[1]
+            N_SUBCHANNELS = data.shape[2]
             SAMPLE_RATE = data.sample_rate
             setup_objects()
             return
 
-        L_np = np.array(data.left_channel).reshape( [CHUNK_SIZE, N_SUBCHANNELS])
-        R_np = np.array(data.right_channel).reshape([CHUNK_SIZE, N_SUBCHANNELS])
+        ani_np = np.array(data.data).reshape(data.shape)
 
-        update_height(L_np, R_np)
+        update_height(ani_np[0], ani_np[1])
 
         for s in range(2):        
             for i in range(0, CHUNK_SIZE, RENDER_STRIDE):
@@ -114,7 +113,7 @@ def visualizer():
         marker_publisher.publish(marker)
         rospy.loginfo('loading: %2f%%' % (100 * (time.time() - t1) * SAMPLE_RATE / CHUNK_SIZE))
     
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, ani_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
 
     r = rospy.Rate(1.)
 

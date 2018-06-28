@@ -16,5 +16,6 @@
 
   <node pkg="central_auditory_model" name="MSO_model_v5" type="MSO_model_v5.py" respawn="true" if="$(arg mso)" />
   <node pkg="central_auditory_model" name="LSO_model_v2" type="LSO_model_v2.py" respawn="true" if="$(arg lso)" />
-  <node pkg="central_auditory_model" name="IC_model" type="IC_model.py" respawn="true" if="$(arg ic)" />
+  <node pkg="central_auditory_model" name="IC_model_v2" type="IC_model_v2.py" respawn="true" if="$(arg ic)" />
+  <node pkg="central_auditory_model" name="angle_estimator" type="angle_estimator.py" respawn="true" if="$(arg ic)" />
 </launch>

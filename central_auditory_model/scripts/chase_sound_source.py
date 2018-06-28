@@ -8,7 +8,7 @@ from central_auditory_model.msg import AngleEstimation
 
 
 NODE_NAME = 'chase_sound_source'
-SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
+SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
 
 def movebase_client():

@@ -10,13 +10,13 @@ import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
 from std_msgs.msg import UInt8
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 from central_auditory_model.msg import AngleEstimation
 
 # ROS
 NODE_NAME = 'nengo_ic_model'
-ANGLE_ESTIMATION_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
-ANGLE_INDEX_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_index'
+ANGLE_ESTIMATION_TOPIC_NAME = '/central_auditory_model/angle_estimation'
+ANGLE_INDEX_TOPIC_NAME = '/central_auditory_model/angle_index'
 SUB_MSO_TOPIC_NAME = '/central_auditory_model/mso_stream'
 SUB_LSO_TOPIC_NAME = '/central_auditory_model/lso_stream'
 
@@ -43,7 +43,7 @@ def run_IC_model():
     event.clear()
 
     def mso_cb(data):
-        if data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+        if data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
             rospy.logwarn('NOT IMPLEMENT YET: dynamic CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
         dq_mso.append(data)
@@ -51,15 +51,15 @@ def run_IC_model():
         # print 'mso_cb receive %f' % data.timecode.to_sec()
 
     def lso_cb(data):
-        if data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+        if data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
             rospy.logwarn('NOT IMPLEMENT YET: dynamic CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
         dq_lso.append(data)
         event.set()
         # print 'lso_cb receive %f' % data.timecode.to_sec()        
 
-    rospy.Subscriber(SUB_MSO_TOPIC_NAME, AuditoryNerveImage, mso_cb)
-    rospy.Subscriber(SUB_LSO_TOPIC_NAME, AuditoryNerveImage, lso_cb)
+    rospy.Subscriber(SUB_MSO_TOPIC_NAME, AuditoryNerveImageMultiDim, mso_cb)
+    rospy.Subscriber(SUB_LSO_TOPIC_NAME, AuditoryNerveImageMultiDim, lso_cb)
 
     index_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
     ang_est_pub = rospy.Publisher(ANGLE_ESTIMATION_TOPIC_NAME, AngleEstimation, queue_size=1)
@@ -92,8 +92,8 @@ def run_IC_model():
             continue
 
         if mso_msg.timecode.to_sec() == lso_msg.timecode.to_sec():
-            mso_data = np.array(mso_msg.left_channel).reshape(mso_msg.shape)
-            lso_data = np.array(lso_msg.left_channel).reshape(lso_msg.shape)
+            mso_data = np.array(mso_msg.data).reshape(mso_msg.shape)
+            lso_data = np.array(lso_msg.data).reshape(lso_msg.shape)
 
             # n_steps = mso_msg.shape[1]
 

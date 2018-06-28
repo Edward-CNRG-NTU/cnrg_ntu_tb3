@@ -9,7 +9,7 @@ import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
 from binaural_microphone.msg import BinauralAudio
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 SAMPLE_RATE = 22050
@@ -27,7 +27,7 @@ SKIP_FIRST_R = 32
 def reactor():
     rospy.init_node(NODE_NAME, anonymous=False)
 
-    ani_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImage, queue_size=1)
+    ani_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
     
     ipem_L_ready = Event()
     ipem_L_q = deque()
@@ -78,23 +78,24 @@ def reactor():
     while not rospy.is_shutdown():
         while ipem_L_ready.wait(1) and ipem_R_ready.wait(1):
             if len(ipem_L_q) >= CHUNK_SIZE and len(ipem_R_q) >= CHUNK_SIZE:
-                ipem_L_np = np.concatenate([ipem_L_q.popleft() for i in range(CHUNK_SIZE)], axis=0)
-                ipem_R_np = np.concatenate([ipem_R_q.popleft() for i in range(CHUNK_SIZE)], axis=0)
-                
+                ipem_L_np = np.stack([ipem_L_q.popleft() for i in range(CHUNK_SIZE)], axis=0)
+                ipem_R_np = np.stack([ipem_R_q.popleft() for i in range(CHUNK_SIZE)], axis=0)
 
                 ipem_L_ready.clear()
                 ipem_R_ready.clear()
 
-                ani = AuditoryNerveImage(
+                ipem_np = np.stack([ipem_L_np, ipem_R_np], axis=0)
+
+                ani = AuditoryNerveImageMultiDim(
                     header=Header(
                         stamp=rospy.Time.now()
                     ),
                     timecode=timecode_q.popleft(),
                     sample_rate=SAMPLE_RATE / 2,
                     chunk_size=CHUNK_SIZE,
-                    n_subchannels=N_SUBCHANNELS,
-                    left_channel=ipem_L_np,
-                    right_channel=ipem_R_np
+                    info='(stereo, chunk_size, n_subchannels)',
+                    shape=ipem_np.shape,
+                    data=ipem_np.ravel()
                 )
                 timecode_q.popleft()            
                 ani_pub.publish(ani)

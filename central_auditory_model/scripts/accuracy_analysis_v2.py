@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import numpy as np
-import collections
 import threading
 import progressbar
-import time
-import os
 
 import rospy, rospkg
 from std_msgs.msg import UInt8
 from std_msgs.msg import String
-from std_msgs.msg import Header
 from central_auditory_model.msg import AngleEstimation
 from confusion_matrix import draw_confusion_matrix
 
@@ -17,9 +13,9 @@ from confusion_matrix import draw_confusion_matrix
 NODE_NAME = 'accuracy_analysis'
 ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
-SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
+SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
-FILE_PATH_NAME = 'wave_stereo_db/corridor'
+FILE_PATH_NAME = 'wave_stereo_db/coffee'
 
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
@@ -39,15 +35,16 @@ def run_analysis():
 
     rospy.Subscriber(SUB_TOPIC_NAME, AngleEstimation, angle_estim_cb)
 
-    time.sleep(1.)    
+    rospy.sleep(1.)
 
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 
     angle_index = 0
     ang_idx_pub.publish(angle_index)
+    rospy.sleep(0.5)
     file_pn_pub.publish(FILE_PATH_NAME)
 
-    capture_start = time.time() + 1.
+    capture_start = rospy.get_time() + 1.
     angle_list = []
     delay_list = []
     angle_stat_list = []
@@ -88,7 +85,7 @@ def run_analysis():
                 # angle_index = angle_index + 1 if angle_index < len(SUPPORTED_ANGLES) - 1 else 0
                 ang_idx_pub.publish(angle_index)
 
-                capture_start = time.time() + 1.
+                capture_start = rospy.get_time() + 1.
                 angle_list = []
                 delay_list = []
                 bar = progressbar.ProgressBar(max_value=N_CAPTURE_SAMPLES)

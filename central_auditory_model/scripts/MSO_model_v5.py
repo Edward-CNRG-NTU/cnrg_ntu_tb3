@@ -9,7 +9,7 @@ import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
 # from binaural_microphone.msg import BinauralAudio
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 NODE_NAME = 'nengo_mso_model'
@@ -98,23 +98,19 @@ def run_MSO_model():
     event = threading.Event()
 
     def ani_cb(data):        
-        if data.chunk_size != SRC_CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SRC_SAMPLE_RATE:            
-            rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SRC_SAMPLE_RATE not supported!')
+        if data.shape[1] != SRC_CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SRC_SAMPLE_RATE:            
+            rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
-        try:
-            ani_L_1d[:] = data.left_channel
-            ani_R_1d[:] = data.right_channel
-        except ValueError:
-            rospy.logwarn('shape mismatch: %d -> %d %d' % (len(data.left_channel), data.chunk_size, data.n_subchannels))
-            return
-        else:
-            dl_L.update(ani_L, timecode=data.timecode)
-            dl_R.update(ani_R)
-            event.set()
+        
+        ani_data = np.array(data.data).reshape(data.shape)
 
-    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImage, queue_size=1)
+        dl_L.update(ani_data[0], timecode=data.timecode)
+        dl_R.update(ani_data[1])
+        event.set()
+
+    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
     
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, ani_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
 
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
@@ -158,22 +154,24 @@ def run_MSO_model():
             # print sim.model.params[out_probe][-1].shape
 
             mso_data = sim.model.params[out_probe][-1].reshape((N_DELAY_VAL, N_SUBCHANNELS, SRC_CHUNK_SIZE))
+            del sim.model.params[out_probe][-1]
+
             mso_data = maxpooling(mso_data, window=MAXPOOLING_STEP, step=MAXPOOLING_STEP, axis=2)
             # print mso_data.shape
             mso_data = np.swapaxes(mso_data, 1, 2)
             # print mso_data.shape
 
-            mso_msg = AuditoryNerveImage(header=Header(
-                                            stamp=rospy.Time.now()
-                                        ),
-                                        timecode=timecode,
-                                        sample_rate=OUT_SAMPLE_RATE,
-                                        chunk_size=SIM_PARALLEL_FACTOR,
-                                        n_subchannels=N_SUBCHANNELS,
-                                        shape=mso_data.shape,
-                                        info='(direction, chunk_size, n_subchannels)',
-                                        left_channel=mso_data.reshape(-1),
-                                        right_channel=[])
+            mso_msg = AuditoryNerveImageMultiDim(
+                header=Header(
+                    stamp=rospy.Time.now()
+                ),
+                timecode=timecode,
+                sample_rate=OUT_SAMPLE_RATE,
+                chunk_size=SIM_PARALLEL_FACTOR,
+                shape=mso_data.shape,
+                info='(direction, chunk_size, n_subchannels)',
+                data=mso_data.ravel()
+            )
             mso_pub.publish(mso_msg)
             rospy.loginfo('[%f] ran %d steps in %5.3f sec, %d steps yet to run.' % (timecode.to_sec(), SRC_CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run))
         # TODO: handle timeout and not directly exit.

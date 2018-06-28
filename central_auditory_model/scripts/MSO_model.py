@@ -10,7 +10,7 @@ import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
 # from binaural_microphone.msg import BinauralAudio
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 NODE_NAME = 'nengo_mso_model'
@@ -42,7 +42,7 @@ def run_MSO_model():
     dl_L = DelayLine((N_SUBCHANNELS,), SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)
     dl_R = DelayLine((N_SUBCHANNELS,), SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)
 
-    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImage, queue_size=1)
+    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
 
     ani_L = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
     ani_R = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
@@ -52,31 +52,21 @@ def run_MSO_model():
     event = threading.Event()
 
     def ani_cb(data):        
-        if data.chunk_size != CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
-            rospy.logwarn('NOT IMPLEMENT YET: dynamic CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
-            # CHUNK_SIZE = data.chunk_size
-            # N_SUBCHANNELS = data.n_subchannels
-            # SAMPLE_RATE = data.sample_rate
-            # setup_objects()
+        if data.shape[1] != CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+            rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
-        t1 = time.time()
-        try:
-            ani_L_1d[:] = data.left_channel
-            ani_R_1d[:] = data.right_channel
-        except ValueError:
-            rospy.logwarn('shape mismatch: %d -> %d %d' % (len(data.left_channel), data.chunk_size, data.n_subchannels))
-            return
-        else:
-            dl_L.update(ani_L)
-            dl_R.update(ani_R)
-            event.set()
-        # print time.time() - t1
+        
+        ani_data = np.array(data.data).reshape(data.shape)
 
-    mso_msg = AuditoryNerveImage(sample_rate=SAMPLE_RATE / MAXPOOLING, chunk_size=N_DELAY_VAL, n_subchannels=N_SUBCHANNELS)
+        dl_L.update(ani_data[0], timecode=data.timecode)
+        dl_R.update(ani_data[1])
+        event.set()
+
+    mso_msg = AuditoryNerveImageMultiDim(sample_rate=SAMPLE_RATE / MAXPOOLING, chunk_size=N_DELAY_VAL)
 
     def mso_output_cb(t, x):
         mso_msg.header = Header(stamp=rospy.Time.now())
-        mso_msg.left_channel = x.ravel()
+        mso_msg.data = x.ravel()
         mso_pub.publish(mso_msg)
 
     sc = SignalCollector((N_DELAY_VAL, N_SUBCHANNELS), mso_output_cb, initial_value=0.05, maxpooling=100)
@@ -133,7 +123,7 @@ def run_MSO_model():
     sim = build_model()
     print sim.time, sim.n_steps
     
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, ani_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):

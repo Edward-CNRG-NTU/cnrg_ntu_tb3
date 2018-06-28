@@ -13,7 +13,7 @@ from central_auditory_model.msg import AngleEstimation
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
 NODE_NAME = 'viz_IC'
-SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
+SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 PUB_TOPIC_NAME = '/visualization_marker'
 
 FRAME_ID = '/map'

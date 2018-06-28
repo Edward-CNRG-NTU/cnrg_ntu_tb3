@@ -10,7 +10,7 @@ import rospy
 from std_msgs.msg import String
 from std_msgs.msg import Header
 # from binaural_microphone.msg import BinauralAudio
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 NODE_NAME = 'nengo_mso_model'
@@ -79,31 +79,19 @@ def run_MSO_model():
     event = threading.Event()
 
     def ani_cb(data):        
-        if data.chunk_size != CHUNK_SIZE or data.n_subchannels != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
-            rospy.logwarn('NOT IMPLEMENT YET: dynamic CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
+        if data.shape[1] != SRC_CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+            rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
-        try:
-            ani_L_1d[:] = data.left_channel
-            ani_R_1d[:] = data.right_channel
-        except ValueError:
-            rospy.logwarn('shape mismatch: %d -> %d %d' % (len(data.left_channel), data.chunk_size, data.n_subchannels))
-            return
-        else:
-            dl_L.update(ani_L)
-            dl_R.update(ani_R)
-            event.set()
+        
+        ani_data = np.array(data.data).reshape(data.shape)
 
-    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImage, queue_size=1)
-    mso_msg = AuditoryNerveImage(sample_rate=SAMPLE_RATE / MAXPOOLING, chunk_size=N_DELAY_VAL, n_subchannels=N_SUBCHANNELS)
-
-    def mso_output_cb(t, x):
-        mso_msg.header = Header(stamp=rospy.Time.now())
-        mso_msg.left_channel = x.ravel()
-        mso_pub.publish(mso_msg)
+        dl_L.update(ani_data[0], timecode=data.timecode)
+        dl_R.update(ani_data[1])
+        event.set()
 
     sim, in_L, in_R, out_probe = build_nengo_model()
     
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, ani_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):
@@ -130,6 +118,7 @@ def run_MSO_model():
             print 'batch_view_chunk: ', timeit.default_timer() - t2
             sim.run_steps(CHUNK_SIZE, progress_bar=False, input_feeds={in_L: in_L_data, in_R: in_R_data})
             print sim.model.params[out_probe][-1].shape
+            del sim.model.params[out_probe][-1]
             print 'ran %d steps in %5.3f sec, %d steps yet to run.' % (CHUNK_SIZE, timeit.default_timer() - t2, yet_to_run)
 
 

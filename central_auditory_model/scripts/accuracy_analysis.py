@@ -15,7 +15,7 @@ from central_auditory_model.msg import AngleEstimation
 NODE_NAME = 'accuracy_analysis'
 ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
-SUB_TOPIC_NAME = '/central_auditory_model/ic_stream/angle_estimation'
+SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]

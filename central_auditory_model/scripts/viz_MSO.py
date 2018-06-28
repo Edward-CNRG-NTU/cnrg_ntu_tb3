@@ -7,7 +7,7 @@ import rospy, tf
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
 from std_msgs.msg import Header, Float32, ColorRGBA, Int16MultiArray
-from ipem_module.msg import AuditoryNerveImage
+from ipem_module.msg import AuditoryNerveImageMultiDim
 
 
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
@@ -53,7 +53,7 @@ def visualizer():
 
     def mso_cb(data):
         t1 = time.time()
-        data_np = np.clip(np.max(np.array(data.left_channel).reshape(data.shape), axis=1, keepdims=True) / 2.4, 0, 1)
+        data_np = np.clip(np.max(np.array(data.data).reshape(data.shape), axis=1, keepdims=True) / 2.4, 0, 1)
 
         points = [Point(t * X_SPACING, 0.85 - i * Y_SPACING, ch * Z_SPACING) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
         colors = [ColorRGBA(*hsva_to_rgba(0.67 - 0.67 * data_np[i, t, ch], 1., 1., data_np[i, t, ch] if data_np[i, t, ch] != max(data_np[:, t, ch]) else 1.)) for i in range(data_np.shape[0]) for t in range(data_np.shape[1]) for ch in range(data_np.shape[2])]
@@ -76,7 +76,7 @@ def visualizer():
 
         rospy.loginfo(time.time() - t1)
 
-    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImage, mso_cb)
+    rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, mso_cb)
 
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 

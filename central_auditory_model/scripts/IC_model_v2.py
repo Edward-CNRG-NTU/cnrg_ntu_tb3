@@ -6,18 +6,14 @@ import nengo, nengo_dl
 from collections import deque
 
 import rospy
-from std_msgs.msg import String
 from std_msgs.msg import Header
-from std_msgs.msg import UInt8
 from ipem_module.msg import AuditoryNerveImageMultiDim
-from central_auditory_model.msg import AngleEstimation
 
 # ROS
 NODE_NAME = 'nengo_ic_model'
-ANGLE_ESTIMATION_TOPIC_NAME = '/central_auditory_model/angle_estimation'
-ANGLE_INDEX_TOPIC_NAME = '/central_auditory_model/angle_index'
 SUB_MSO_TOPIC_NAME = '/central_auditory_model/mso_stream'
 SUB_LSO_TOPIC_NAME = '/central_auditory_model/lso_stream'
+PUB_IC_TOPIC_NAME = '/central_auditory_model/ic_stream'
 
 # SIGNAL
 MAXPOOLING_STEP = 64
@@ -30,9 +26,6 @@ MAX_DELAY = 5.
 
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 N_SUPPORTED_ANGLES = len(SUPPORTED_ANGLES)
-
-vote_weight = np.repeat(np.repeat([[3,5,3,1]], CHUNK_SIZE, 0), [1,21,12,6], 1)
-vote_stat_bin = np.arange(len(SUPPORTED_ANGLES) + 1)
 
 synapse_node_ens = 0
 synapse_ens_node = 0
@@ -105,13 +98,13 @@ def run_IC_model():
     rospy.Subscriber(SUB_MSO_TOPIC_NAME, AuditoryNerveImageMultiDim, mso_cb)
     rospy.Subscriber(SUB_LSO_TOPIC_NAME, AuditoryNerveImageMultiDim, lso_cb)
 
-    index_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
-    ang_est_pub = rospy.Publisher(ANGLE_ESTIMATION_TOPIC_NAME, AngleEstimation, queue_size=1)
+    ic_pub = rospy.Publisher(PUB_IC_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
 
     rospy.loginfo('"%s" starts subscribing to "%s" and "%s".' % (NODE_NAME, SUB_MSO_TOPIC_NAME, SUB_LSO_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):
         event.clear()
+        t2 = timeit.default_timer()
 
         try:
             mso_msg = dq_mso.popleft()
@@ -145,36 +138,20 @@ def run_IC_model():
             ic_data = sim.model.params[out_probe][-1]
             del sim.model.params[out_probe][-1]
 
-            print ic_data.shape
-
-            argmax_of_every_ch = np.argmax(ic_data, axis=0)
-
-            print argmax_of_every_ch
-
-            # vote_result = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight * (amp_data > np.mean(amp_data)))[0]  # NOTICE how th bin set up.
-            vote_result = np.histogram(argmax_of_every_ch, bins=vote_stat_bin, weights=vote_weight)[0]  # NOTICE how th bin set up.
-
-            angle_index = np.argmax(vote_result)
-
-            # rospy.logwarn(angle_index)
-
-            ang_est_pub.publish(
-                AngleEstimation(
-                    header=Header(
-                        frame_id=NODE_NAME,
-                        stamp=rospy.Time.now()
-                    ),
-                    timecode=mso_msg.timecode,
-                    angle_estimastion=SUPPORTED_ANGLES[angle_index],
-                    angle_index=angle_index,
-                    votes=vote_result,
-                    supported_angles=SUPPORTED_ANGLES
-                )
+            ic_msg = AuditoryNerveImageMultiDim(
+                header=Header(
+                    stamp=rospy.Time.now()
+                ),
+                timecode=mso_msg.timecode,
+                sample_rate=SAMPLE_RATE,
+                chunk_size=CHUNK_SIZE,
+                shape=ic_data.shape,
+                info='(direction, chunk_size, n_subchannels)',
+                data=ic_data.ravel(),
             )
-            
-            index_pub.publish(angle_index)
 
-            rospy.loginfo('<%f> angle_estimate: (%d)%d' % (mso_msg.timecode.to_sec(), angle_index, SUPPORTED_ANGLES[angle_index]))
+            ic_pub.publish(ic_msg)
+            rospy.loginfo('[%f] ran %d steps in %5.3f sec.' % (mso_msg.timecode.to_sec(), CHUNK_SIZE, timeit.default_timer() - t2))
 
 
 if __name__ == '__main__':
