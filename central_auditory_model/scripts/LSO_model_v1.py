@@ -99,12 +99,7 @@ def build_nengo_model():
     return simulator, input_L, input_R, output_probe   
 
 
-def run_LSO_model():    
-    ani_L = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
-    ani_R = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])    
-    ani_L_1d = ani_L.ravel() # create an 1-D view into ani_L, must use ravel().
-    ani_R_1d = ani_R.ravel() # create an 1-D view into ani_L, must use ravel().
-
+def run_LSO_model():
     dl_L = DelayLine((N_SUBCHANNELS,), SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)
     dl_R = DelayLine((N_SUBCHANNELS,), SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)    
 
@@ -113,7 +108,7 @@ def run_LSO_model():
     event = threading.Event()
 
     def ani_cb(data):        
-        if data.shape[1] != SRC_CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
+        if data.shape[1] != CHUNK_SIZE or data.shape[2] != N_SUBCHANNELS or data.sample_rate != SAMPLE_RATE:            
             rospy.logwarn('NOT IMPLEMENT YET: dynamic SRC_CHUNK_SIZE, N_SUBCHANNELS and SAMPLE_RATE not supported!')
             return
         

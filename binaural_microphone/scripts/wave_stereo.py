@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
         reconfig_server = Server(waveStereoConfig, dynamic_reconfig_cb)
 
-        raw_pub = rospy.Publisher(TOPIC_NAME, BinauralAudio, queue_size=1)
+        raw_pub = rospy.Publisher(TOPIC_NAME, BinauralAudio, queue_size=10)
         # raw_str_pub = rospy.Publisher('/audio_stream_raw', String, queue_size=1)  # for backward compability.
 
         rms_L_pub = rospy.Publisher(RMS_TOPIC_NAME + '/L', Float32, queue_size=1)

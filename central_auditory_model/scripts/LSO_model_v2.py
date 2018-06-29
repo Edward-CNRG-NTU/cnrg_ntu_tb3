@@ -127,14 +127,15 @@ def run_LSO_model():
         dl_R.update(ani_data[1])
         event.set()
 
-    lso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
+    lso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=10)
     rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
 
     rospy.loginfo('"%s" starts subscribing to "%s".' % (NODE_NAME, SUB_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):
-        yet_to_run = dl_R.n_steps - sim.n_steps * MAXPOOLING_STEP - SRC_CHUNK_SIZE
+        t2 = timeit.default_timer()
 
+        yet_to_run = dl_R.n_steps - sim.n_steps * MAXPOOLING_STEP - SRC_CHUNK_SIZE
         if yet_to_run == 0:
             event.clear()
         elif yet_to_run > MAX_STEPS:
@@ -145,18 +146,12 @@ def run_LSO_model():
             event.clear()
             continue
 
-        t2 = timeit.default_timer()
-
         try:
             view_start = sim.n_steps * MAXPOOLING_STEP - MAXPOOLING_OVERLAP
             view_len = SRC_CHUNK_SIZE + MAXPOOLING_OVERLAP
             timecode = dl_L.get_timecode(view_start + MAXPOOLING_OVERLAP)
             timecode_2 = dl_L.get_timecode(view_start + view_len - 1)
-            
-            if timecode != timecode_2:
-                print 'Timecode out of sync! %f, %f' % (timecode.to_sec(), timecode_2.to_sec())
-                for i in range(view_len):
-                    print i, dl_L.get_timecode(view_start + i)
+            assert timecode == timecode_2, 'Timecode out of sync! %f, %f' % (timecode.to_sec(), timecode_2.to_sec())
 
             in_L_data = dl_L.batch_view_chunk(view_start, view_len)
             in_R_data = dl_R.batch_view_chunk(view_start, view_len)

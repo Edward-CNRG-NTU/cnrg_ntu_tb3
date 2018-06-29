@@ -18,7 +18,7 @@ SUB_TOPIC_NAME = '/ipem_module/apm_stream'
 SRC_SAMPLE_RATE = 11025
 SRC_CHUNK_SIZE = 1024
 N_SUBCHANNELS = 40
-MAX_DELAY = 3.
+MAX_DELAY = 1.
 MAX_STEPS = int(MAX_DELAY * SRC_SAMPLE_RATE)
 
 # DELAY_STEPS_L = [10, 9, 7, 5, 3, 1, 0]  # [0, 1, 3, 5, 7, 9, 10]
@@ -55,7 +55,6 @@ def maxpooling(a, window, step, axis=-1):
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides).max(axis=axis + 1)
 
 
-
 def build_nengo_model():
     lifrate_model = nengo.LIFRate(tau_rc=0.002, tau_ref=0.0002)
     max_r = nengo.dists.Uniform(1000, 2000)
@@ -84,12 +83,7 @@ def build_nengo_model():
     return simulator, input_node_L, input_node_R, output_probe   
 
 
-def run_MSO_model():    
-    ani_L = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])
-    ani_R = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])    
-    ani_L_1d = ani_L.ravel() # create an 1-D view into ani_L, must use ravel().
-    ani_R_1d = ani_R.ravel() # create an 1-D view into ani_L, must use ravel().
-
+def run_MSO_model():
     dl_L = DelayLine((N_SUBCHANNELS,), SRC_SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)
     dl_R = DelayLine((N_SUBCHANNELS,), SRC_SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)    
 
@@ -106,9 +100,10 @@ def run_MSO_model():
 
         dl_L.update(ani_data[0], timecode=data.timecode)
         dl_R.update(ani_data[1])
+        assert dl_L.buf_head == dl_R.buf_head, 'buf_head out of sync'
         event.set()
 
-    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
+    mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=10)
     
     rospy.Subscriber(SUB_TOPIC_NAME, AuditoryNerveImageMultiDim, ani_cb)
 
@@ -129,17 +124,11 @@ def run_MSO_model():
             event.clear()
             continue
 
-        try:
+        try:            
             timecode = dl_L.get_timecode(view_start)
-            # timecode_2 = dl_L.get_timecode(view_start + SRC_CHUNK_SIZE - 1)
-            # assert timecode == timecode_2, 'Timecode out of sync!'
-            # if timecode != timecode_2:
-            #     rospy.logwarn('Timecode out of sync!')
-            #     global N_SUBCHANNELS
-            #     N_SUBCHANNELS = 0
-            #     for i in range(SRC_CHUNK_SIZE):
-            #         print i, dl_L.get_timecode(view_start + i).to_sec()
-            #     assert timecode == timecode_2, 'Timecode out of sync! %f, %f' % (timecode.to_sec(), timecode_2.to_sec())                    
+            timecode_2 = dl_L.get_timecode(view_start + SRC_CHUNK_SIZE - 1)
+            assert timecode == timecode_2, 'Timecode out of sync! %f, %f' % (timecode.to_sec(), timecode_2.to_sec())
+            
             in_L_data = dl_L.batch_view_chunk(view_start, SRC_CHUNK_SIZE, delay_steps=DELAY_STEPS_L)
             in_R_data = dl_R.batch_view_chunk(view_start, SRC_CHUNK_SIZE, delay_steps=DELAY_STEPS_R)
         except ValueError:

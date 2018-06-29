@@ -98,37 +98,37 @@ def run_IC_model():
     rospy.Subscriber(SUB_MSO_TOPIC_NAME, AuditoryNerveImageMultiDim, mso_cb)
     rospy.Subscriber(SUB_LSO_TOPIC_NAME, AuditoryNerveImageMultiDim, lso_cb)
 
-    ic_pub = rospy.Publisher(PUB_IC_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
+    ic_pub = rospy.Publisher(PUB_IC_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=10)
 
     rospy.loginfo('"%s" starts subscribing to "%s" and "%s".' % (NODE_NAME, SUB_MSO_TOPIC_NAME, SUB_LSO_TOPIC_NAME))
 
     while not rospy.is_shutdown() and event.wait(1.0):
-        event.clear()
         t2 = timeit.default_timer()
 
         try:
             mso_msg = dq_mso.popleft()
         except IndexError:
+            event.clear()
             continue
 
         try:
             lso_msg = dq_lso.popleft()
-        except IndexError:            
+        except IndexError:
+            event.clear()     
             dq_mso.appendleft(mso_msg)
             continue
 
-        if mso_msg.timecode.to_sec() < lso_msg.timecode.to_sec():
-            rospy.logwarn('skip 1 mso_msg: %d, %d' % (len(dq_mso), len(dq_lso)))
+        if mso_msg.timecode < lso_msg.timecode:
+            rospy.logwarn('drop 1 mso_msg: (%f), %f' % (mso_msg.timecode.to_sec(), lso_msg.timecode.to_sec()))
             dq_lso.appendleft(lso_msg)
-            event.set()
-            continue
-        elif mso_msg.timecode.to_sec() > lso_msg.timecode.to_sec():
-            rospy.logwarn('skip 1 lso_msg: %d, %d' % (len(dq_mso), len(dq_lso)))
-            dq_mso.appendleft(mso_msg)
-            event.set()
             continue
 
-        if mso_msg.timecode.to_sec() == lso_msg.timecode.to_sec():
+        if mso_msg.timecode > lso_msg.timecode:
+            rospy.logwarn('drop 1 lso_msg: %f, (%f)' % (mso_msg.timecode.to_sec(), lso_msg.timecode.to_sec()))
+            dq_mso.appendleft(mso_msg)
+            continue
+
+        if mso_msg.timecode == lso_msg.timecode:
             mso_data = np.array(mso_msg.data).reshape(mso_msg.shape)
             lso_data = np.array(lso_msg.data).reshape(lso_msg.shape)
             # amp_data = np.array(lso_msg.right_channel).reshape((16, 40))
@@ -152,6 +152,8 @@ def run_IC_model():
 
             ic_pub.publish(ic_msg)
             rospy.loginfo('[%f] ran %d steps in %5.3f sec.' % (mso_msg.timecode.to_sec(), CHUNK_SIZE, timeit.default_timer() - t2))
+        else:
+            rospy.logwarn('should not be here')
 
 
 if __name__ == '__main__':

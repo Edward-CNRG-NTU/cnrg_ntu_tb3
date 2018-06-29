@@ -32,7 +32,7 @@ if __name__ == '__main__':
     try:
         rospy.init_node(NODE_NAME, anonymous=False)
 
-        raw_pub = rospy.Publisher(TOPIC_NAME, BinauralAudio, queue_size=1)
+        raw_pub = rospy.Publisher(TOPIC_NAME, BinauralAudio, queue_size=10)
         # raw_str_pub = rospy.Publisher('/audio_stream_raw', String, queue_size=1)  # for backward compability.
 
         rms_L_pub = rospy.Publisher(RMS_TOPIC_NAME + '/L', Float32, queue_size=1)

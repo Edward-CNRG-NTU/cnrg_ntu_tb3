@@ -28,8 +28,8 @@ vote_stat_bin = np.arange(len(SUPPORTED_ANGLES) + 1)
 
 
 def run_angle_estimator():
-    index_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=1)
-    ang_est_pub = rospy.Publisher(ANGLE_ESTIMATION_TOPIC_NAME, AngleEstimation, queue_size=1)
+    index_pub = rospy.Publisher(ANGLE_INDEX_TOPIC_NAME, UInt8, queue_size=10)
+    ang_est_pub = rospy.Publisher(ANGLE_ESTIMATION_TOPIC_NAME, AngleEstimation, queue_size=10)
 
     def ic_cb(data):
         ic_data = np.array(data.data).reshape(data.shape)

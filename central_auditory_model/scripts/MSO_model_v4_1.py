@@ -81,12 +81,7 @@ def build_nengo_model():
     return simulator, input_node_L, input_node_R, output_probe   
 
 
-def run_MSO_model():    
-    ani_L = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])
-    ani_R = np.zeros([SRC_CHUNK_SIZE, N_SUBCHANNELS])    
-    ani_L_1d = ani_L.ravel() # create an 1-D view into ani_L, must use ravel().
-    ani_R_1d = ani_R.ravel() # create an 1-D view into ani_L, must use ravel().
-
+def run_MSO_model():
     dl_L = DelayLine((N_SUBCHANNELS,), SRC_SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)
     dl_R = DelayLine((N_SUBCHANNELS,), SRC_SAMPLE_RATE, initial_value=0.05, max_delay=MAX_DELAY)    
 

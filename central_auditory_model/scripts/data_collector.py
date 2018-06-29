@@ -50,8 +50,8 @@ def run_collector():
     apm_q = collections.deque(maxlen=50)
     mso_q = collections.deque(maxlen=50)
     lso_q = collections.deque(maxlen=50)
-    ic_q = collections.deque(maxlen=30)
-    ang_q = collections.deque(maxlen=10)
+    ic_q = collections.deque(maxlen=50)
+    ang_q = collections.deque(maxlen=30)
     event = threading.Event()
     event.clear()
 
@@ -74,6 +74,7 @@ def run_collector():
     ani_list = []
     votes_list = []
     label_list = []
+    timecode_list = []
 
     rospy.loginfo('starting %s' % NODE_NAME)
 
@@ -88,20 +89,24 @@ def run_collector():
     rospy.loginfo('collecting %s: (%d) %d' % (FILE_PATH_NAME, angle_index, SUPPORTED_ANGLES[angle_index]))
 
     while not rospy.is_shutdown():        
-        if event.wait(1.):
-            event.clear()
-        else:
+        if not event.wait(1.):
             rospy.logwarn('main loop timeout!')
             continue
-        
-        ang_msg = ang_q.popleft()
 
+        if len(ang_q) >= 5:
+            ang_msg = ang_q.popleft()
+        else:
+            event.clear()
+            continue
+        
         if ang_msg.timecode.to_sec() < capture_start:
-            # rospy.logwarn('skip!')
             continue
             
         label_list.append(angle_index)
-        votes_list.append(np.array(ang_msg.votes, dtype=np.uint8))       
+        votes_list.append(np.array(ang_msg.votes, dtype=np.uint8))
+        timecode_list.append(ang_msg.timecode.to_sec())
+
+        # print len(apm_q), len(mso_q), len(lso_q), len(ic_q)
 
         apm_msg = search_msg(apm_q, ang_msg.timecode)
         mso_msg = search_msg(mso_q, ang_msg.timecode)
@@ -146,10 +151,11 @@ def run_collector():
             ani_db = np.stack(ani_list, axis=0)
             votes_db = np.stack(votes_list, axis=0)
             label_db = np.array(label_list, dtype=np.uint8)
+            timecode_db = np.array(timecode_list, dtype=np.float64)
 
-            print apm_db.shape, ani_db.shape, votes_db.shape, label_db.shape
+            print apm_db.shape, ani_db.shape, votes_db.shape, label_db.shape, timecode_db.shape
 
-            np.savez_compressed('db_corridor.npz', apm_db=apm_db, ani_db=ani_db, votes_db=votes_db, label_db=label_db)
+            np.savez_compressed('db_corridor.npz', apm_db=apm_db, ani_db=ani_db, votes_db=votes_db, label_db=label_db, timecode_db=timecode_db)
             rospy.loginfo('collecting %s: done.' % FILE_PATH_NAME)
             
             break

@@ -27,7 +27,7 @@ SKIP_FIRST_R = 32
 def reactor():
     rospy.init_node(NODE_NAME, anonymous=False)
 
-    ani_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
+    ani_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=10)
     
     ipem_L_ready = Event()
     ipem_L_q = deque()

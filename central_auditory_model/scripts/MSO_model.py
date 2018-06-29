@@ -44,11 +44,6 @@ def run_MSO_model():
 
     mso_pub = rospy.Publisher(PUB_TOPIC_NAME, AuditoryNerveImageMultiDim, queue_size=1)
 
-    ani_L = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
-    ani_R = np.zeros([CHUNK_SIZE, N_SUBCHANNELS])
-    ani_L_1d = ani_L.ravel() # create an 1-D view into ani_L, must use ravel().
-    ani_R_1d = ani_R.ravel() # create an 1-D view into ani_L, must use ravel().
-
     event = threading.Event()
 
     def ani_cb(data):        
