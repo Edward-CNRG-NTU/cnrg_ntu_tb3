@@ -42,6 +42,8 @@ def visualizer():
 
         all_votes = sum(data.votes)
 
+        rospy.loginfo(data.votes)
+
         for (i, vote) in enumerate(data.votes):
             confidence = max(float(vote) / all_votes, 0.001)
             # confidence = 1

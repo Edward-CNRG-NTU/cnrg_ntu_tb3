@@ -21,7 +21,8 @@ LSO_TOPIC_NAME = '/central_auditory_model/lso_stream'
 IC_TOPIC_NAME = '/central_auditory_model/ic_stream'
 ANG_EST_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
-FILE_PATH_NAME = 'wave_stereo_db/lab'
+FILE_PATH_NAME = 'wave_stereo_db/cor'
+DB_FILENAME = 'db_cor'
 
 N_CAPTURE_SAMPLES = 2000
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
@@ -71,7 +72,7 @@ def run_collector():
     rospy.sleep(1.)
 
     apm_list = []
-    ani_list = []
+    acm_list = []
     votes_list = []
     label_list = []
     timecode_list = []
@@ -103,7 +104,7 @@ def run_collector():
             continue
             
         label_list.append(angle_index)
-        votes_list.append(np.array(ang_msg.votes, dtype=np.uint8))
+        votes_list.append(np.array(ang_msg.votes, dtype=np.uint16))
         timecode_list.append(ang_msg.timecode.to_sec())
 
         # print len(apm_q), len(mso_q), len(lso_q), len(ic_q)
@@ -117,16 +118,16 @@ def run_collector():
             apm_data = np.swapaxes(np.array(apm_msg.data, dtype=np.float32).reshape(apm_msg.shape), 0, 1)
             apm_list.append(apm_data)
         else:
-            rospy.logwarn('lost apm_msg!!!')
+            rospy.logerr('lost apm_msg!!!')
 
         if mso_msg is not None and lso_msg is not None and ic_msg is not None:
             mso_data = np.swapaxes(np.array(mso_msg.data, dtype=np.float32).reshape(mso_msg.shape), 0, 1)
             lso_data = np.swapaxes(np.array(lso_msg.data, dtype=np.float32).reshape(lso_msg.shape), 0, 1)
             ic_data = np.swapaxes(np.array(ic_msg.data, dtype=np.float32).reshape(ic_msg.shape), 0, 1)
-            ani_data = np.stack([mso_data, lso_data, ic_data], axis=-1)
-            ani_list.append(ani_data)
+            acm_data = np.stack([mso_data, lso_data, ic_data], axis=-1)
+            acm_list.append(acm_data)
         else:
-            rospy.logwarn('lost mso_msg or lso_msg or ic_msg!!!')
+            rospy.logerr('lost mso_msg or lso_msg or ic_msg!!!')
 
         n_msg += 1
         bar.update(n_msg)
@@ -148,14 +149,14 @@ def run_collector():
             # print len(apm_list), len(ani_list), len(votes_list), len(label_list)
 
             apm_db = np.stack(apm_list, axis=0)
-            ani_db = np.stack(ani_list, axis=0)
+            acm_db = np.stack(acm_list, axis=0)
             votes_db = np.stack(votes_list, axis=0)
             label_db = np.array(label_list, dtype=np.uint8)
             timecode_db = np.array(timecode_list, dtype=np.float64)
 
-            print apm_db.shape, ani_db.shape, votes_db.shape, label_db.shape, timecode_db.shape
+            print apm_db.shape, acm_db.shape, votes_db.shape, label_db.shape, timecode_db.shape
 
-            np.savez_compressed('db_corridor.npz', apm_db=apm_db, ani_db=ani_db, votes_db=votes_db, label_db=label_db, timecode_db=timecode_db)
+            np.savez_compressed(DB_FILENAME + '.npz', apm_db=apm_db, acm_db=acm_db, votes_db=votes_db, label_db=label_db, timecode_db=timecode_db)
             rospy.loginfo('collecting %s: done.' % FILE_PATH_NAME)
             
             break
@@ -163,7 +164,7 @@ def run_collector():
     
 if __name__ == '__main__':
     try:
-        rospy.init_node(NODE_NAME, anonymous=True)
+        rospy.init_node(NODE_NAME, anonymous=False)
         run_collector()
     except rospy.ROSInterruptException as e:
         rospy.logerr(e)

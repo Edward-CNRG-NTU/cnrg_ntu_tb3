@@ -15,7 +15,7 @@ ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
 SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
-FILE_PATH_NAME = 'wave_stereo_db/coffee'
+FILE_PATH_NAME = 'wave_stereo_db/lab2'
 
 N_CAPTURE_SAMPLES = 400
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
@@ -94,7 +94,7 @@ def run_analysis():
     
 if __name__ == '__main__':
     try:
-        rospy.init_node(NODE_NAME, anonymous=True)
+        rospy.init_node(NODE_NAME, anonymous=False)
         run_analysis()
     except rospy.ROSInterruptException as e:
         rospy.logerr(e)
