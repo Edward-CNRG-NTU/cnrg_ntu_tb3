@@ -59,8 +59,10 @@ def visualizer():
         pos[0, :, :, 1] += (- Y_SPLIT_SPACING - N_SUBCHANNELS * Y_SPACING)
 
         clr = np.zeros([2, CHUNK_SIZE, N_SUBCHANNELS, 4])
-        for j in range(N_SUBCHANNELS):
-            clr[:, :, j, :] = np.array(hsva_to_rgba(0.67 - 0.67 * j / N_SUBCHANNELS, 1.0, 1.0, 1.0))
+        for i in range(CHUNK_SIZE):
+            di =  1.0 * i / CHUNK_SIZE
+            for j in range(N_SUBCHANNELS):
+                clr[:, i, j, :] = np.array(hsva_to_rgba(0.67 - 0.67 * j / N_SUBCHANNELS, 1.0, di, 1.0))
         
 
         points = [Point(*pos[s, i, j]) for s in range(2) for i in range(0, CHUNK_SIZE, RENDER_STRIDE) for j in range(N_SUBCHANNELS)]
@@ -92,7 +94,7 @@ def visualizer():
 
         for s in range(2):        
             for i in range(0, CHUNK_SIZE, RENDER_STRIDE):
-                for j in range(N_SUBCHANNELS):                
+                for j in range(N_SUBCHANNELS):                    
                     points[(s * CHUNK_SIZE + i) * N_SUBCHANNELS / RENDER_STRIDE + j].z = pos[s, i, j, 2]
                     colors[(s * CHUNK_SIZE + i) * N_SUBCHANNELS / RENDER_STRIDE + j].a = clr[s, i, j, 3]
 

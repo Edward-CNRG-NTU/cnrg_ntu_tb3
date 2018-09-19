@@ -15,9 +15,9 @@ ANGLE_INDEX_TOPIC_NAME = '/binaural_audio/wave_stereo/angle_index'
 FILE_PATH_NAME_TOPIC_NAME = '/binaural_audio/wave_stereo/file_path_name'
 SUB_TOPIC_NAME = '/central_auditory_model/angle_estimation'
 
-FILE_PATH_NAME = 'wave_stereo_db/lab2'
+FILE_PATH_NAME = 'wave_stereo_db/lab_3'
 
-N_CAPTURE_SAMPLES = 400
+N_CAPTURE_SAMPLES = 300
 SUPPORTED_ANGLES = [90, 60, 30, 0, 330, 300, 270]
 
 def run_analysis():
@@ -40,15 +40,19 @@ def run_analysis():
     rospy.loginfo('start subscribing to %s' % SUB_TOPIC_NAME)
 
     angle_index = 0
-    ang_idx_pub.publish(angle_index)
-    rospy.sleep(0.5)
+
     file_pn_pub.publish(FILE_PATH_NAME)
+    rospy.sleep(0.2)
+    ang_idx_pub.publish(angle_index)
+    rospy.sleep(0.3)    
 
     capture_start = rospy.get_time() + 1.
     angle_list = []
     delay_list = []
     angle_stat_list = []
     bar = progressbar.ProgressBar(max_value=N_CAPTURE_SAMPLES)
+
+    print 'using recording %s' % FILE_PATH_NAME
     print 'analyzing (%d) %d' % (angle_index, SUPPORTED_ANGLES[angle_index])
 
     while not rospy.is_shutdown():

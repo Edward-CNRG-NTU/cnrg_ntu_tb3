@@ -2,6 +2,7 @@
   <node pkg="central_auditory_model" name="viz_MSO" type="viz_MSO.py"/>
   <node pkg="central_auditory_model" name="viz_LSO" type="viz_LSO.py"/>
   <node pkg="central_auditory_model" name="viz_IC" type="viz_IC.py"/>
+  <node pkg="central_auditory_model" name="viz_AE" type="viz_AE.py"/>
 
-  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find ipem_module)/rviz/show_marker.rviz" /-->
+  <!-- node name="rviz" pkg="rviz" type="rviz" args="-d $(find ipem_module)/rviz/show_marker.rviz" / -->
 </launch>
